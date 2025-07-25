@@ -1,7 +1,7 @@
 import { Route, Routes } from "react-router-dom";
 import { Login } from "./pages/Login";
 import { DefaultLayout } from "./pages/DefaultLayout";
-import { SalesManagement } from "./pages/sales-management";
+import { SalesManagement } from "./pages/clients";
 import { ManagerDashboard } from "./pages/Dashboard/ManagerDashboard";
 import { Relatorios } from "./pages/Relatorios";
 

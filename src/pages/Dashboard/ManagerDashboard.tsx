@@ -38,10 +38,12 @@ export function ManagerDashboard() {
 
     const totalPages = Math.ceil((allClients?.length ?? 0) / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
-    const paginatedItems = allClients?.slice(
-        startIndex,
-        startIndex + itemsPerPage
-    );
+    const paginatedItems = [...(allClients ?? [])]
+        .filter(client => client?.score != null && !isNaN(Number(client.score)))
+        .sort((a, b) => Number(b.score) - Number(a.score))
+        .slice(startIndex, startIndex + itemsPerPage);
+
+
 
     const goToFirstPage = () => setCurrentPage(1);
     const goToLastPage = () => setCurrentPage(totalPages);
@@ -64,6 +66,9 @@ export function ManagerDashboard() {
     };
 
     const sellers = ["João Vendedor", "Maria Vendedora", "Carlos Vendedor", "Ana Vendedora"]
+
+    console.log(paginatedItems
+        ?.sort((a, b) => Number(a.score) - Number(b.score)))
 
     // Filtrar dados baseado nos filtros
     const filteredData = useMemo(() => {
@@ -178,7 +183,7 @@ export function ManagerDashboard() {
         if (client.contactStatus === "contato_encerrado") {
             return <Badge className="bg-destructive/10 text-destructive border-destructive/20">Encerrado</Badge>
         }
-        return <Badge className="bg-muted text-muted-foreground">Pendente</Badge>
+        return <Badge className="bg-yellow-500 text-white">Pendente</Badge>
     }
 
     if (isLoading) {
@@ -191,6 +196,9 @@ export function ManagerDashboard() {
             </div>
         )
     }
+
+
+
 
     return (
         <div className="min-h-screen bg-background">
@@ -222,7 +230,7 @@ export function ManagerDashboard() {
                             <div>
                                 <label className="text-sm font-medium mb-2 block">Período</label>
                                 <Select value={filters.period} onValueChange={(value) => setFilters({ ...filters, period: value })}>
-                                  <SelectTrigger className="w-full">
+                                    <SelectTrigger className="w-full">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -237,7 +245,7 @@ export function ManagerDashboard() {
                             <div>
                                 <label className="text-sm font-medium mb-2 block">Vendedor</label>
                                 <Select value={filters.seller} onValueChange={(value) => setFilters({ ...filters, seller: value })}>
-                                   <SelectTrigger className="w-full">
+                                    <SelectTrigger className="w-full">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -573,7 +581,7 @@ export function ManagerDashboard() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {paginatedItems?.sort((a, b) => a.score - b.score).map((client) => (
+                                        {paginatedItems?.map((client) => (
                                             <tr key={client.id_cliente} className="border-b hover:bg-muted/50">
                                                 <td className="p-3">
                                                     <div>
@@ -611,9 +619,9 @@ export function ManagerDashboard() {
                                                     )}
                                                 </td>
                                                 <td className="p-3">
-                                                    <div className="max-w-xs truncate text-sm text-muted-foreground">
+                                                    <Badge variant="outline" className="bg-muted">
                                                         {client.motivo_cancelamento}
-                                                    </div>
+                                                    </Badge>
                                                 </td>
                                             </tr>
                                         ))}

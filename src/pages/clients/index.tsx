@@ -1,15 +1,22 @@
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Phone, Mail, Building, MessageCircle, Check, X, Users, ArrowLeft, CheckCircle, XCircle, Edit, Save, ArrowRight, AlertCircle, User, PhoneOff, AlertTriangle } from "lucide-react"
+import { Phone, Mail, Building, MessageCircle, Check, X, Users, ArrowLeft, CheckCircle, XCircle, Save, ArrowRight, AlertCircle, User, PhoneOff, AlertTriangle } from "lucide-react"
 import { usePlanilha } from "@/api/planilha"
 import type { ContratoCancelado, StepIndicatorProps } from "@/types/client"
+import { TableClientsAcepted } from "./table-clients-acepted"
 
-const sellers = ["João Vendedor", "Maria Vendedora", "Carlos Vendedor", "Ana Vendedora"]
+export const sellers = ["João Vendedor", "Maria Vendedora", "Carlos Vendedor", "Ana Vendedora"]
+
+export const getScoreColor = (score: number) => {
+  if (score >= 8) return "text-green-600 font-semibold"
+  if (score >= 6) return "text-yellow-600 font-semibold"
+  return "text-red-600 font-semibold"
+}
 
 export function SalesManagement() {
+
   const [selectedClient, setSelectedClient] = useState<ContratoCancelado | null>()
   const [contactMade, setContactMade] = useState(false)
   const [answered, setAnswered] = useState(false)
@@ -22,10 +29,13 @@ export function SalesManagement() {
 
   const [clients, setClients] = useState<ContratoCancelado[]>()
 
+  const acceptedClients = clients?.filter(client =>
+    client.status === "assigned" && client.assignedTo === sellers[0]
+  )
+
   useEffect(() => {
     setClients(cancelamentos)
   }, [cancelamentos])
-
 
   const nextClient = clients
     ?.filter(client =>
@@ -34,11 +44,6 @@ export function SalesManagement() {
     )
     .sort((a, b) => a.score - b.score)
   [0];
-
-  // Clientes aceitos/atribuídos ao vendedor atual
-  const acceptedClients = clients?.filter(client =>
-    client.status === "assigned" && client.assignedTo === sellers[0]
-  )
 
   const handleAcceptClient = () => {
     if (nextClient) {
@@ -68,65 +73,42 @@ export function SalesManagement() {
     }
   }
 
-type ContactStatus = "em_contato" | "contato_encerrado" | "nao_atendeu" | "recuperado";
+  type ContactStatus = "em_contato" | "contato_encerrado" | "nao_atendeu" | "recuperado";
 
-const handleSaveClientContact = () => {
-  if (selectedClient) {
-    let newContactStatus: ContactStatus = "em_contato";
+  const handleSaveClientContact = () => {
+    if (selectedClient) {
+      let newContactStatus: ContactStatus = "em_contato";
 
-    if (recovered) {
-      newContactStatus = "recuperado";
-    } else if (contactMade && !answered && shouldCloseContact) {
-      newContactStatus = "contato_encerrado";
-    } else if (contactMade && !answered) {
-      newContactStatus = "nao_atendeu";
-    } else if (contactMade && answered) {
-      newContactStatus = "em_contato";
+      if (recovered) {
+        newContactStatus = "recuperado";
+      } else if (contactMade && !answered && shouldCloseContact) {
+        newContactStatus = "contato_encerrado";
+      } else if (contactMade && !answered) {
+        newContactStatus = "nao_atendeu";
+      } else if (contactMade && answered) {
+        newContactStatus = "em_contato";
+      }
+
+      const updatedClient = {
+        ...selectedClient,
+        status: "assigned" as const,
+        contactMade,
+        answered,
+        recovered,
+        contactChannel: answered ? contactChannel as "whatsapp" | "telefone" : undefined,
+        contactStatus: newContactStatus
+      };
+
+      setClients(clients?.map(client =>
+        client.id_cliente === selectedClient.id_cliente ? updatedClient : client
+      ));
+
+      setSelectedClient(null);
     }
-
-    const updatedClient = {
-      ...selectedClient,
-      status: "assigned" as const,
-      contactMade,
-      answered,
-      recovered,
-      contactChannel: answered ? contactChannel as "whatsapp" | "telefone" : undefined,
-      contactStatus: newContactStatus
-    };
-
-    setClients(clients?.map(client =>
-      client.id_cliente === selectedClient.id_cliente ? updatedClient : client
-    ));
-
-    setSelectedClient(null);
-  }
-};
-
+  };
 
   const handleBackToDashboard = () => {
     setSelectedClient(null)
-  }
-
-  const getStatusBadge = (client: ContratoCancelado) => {
-    if (client.recovered) {
-      return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Recuperado</Badge>
-    }
-    if (client.contactStatus === "em_contato") {
-      return <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">Em Contato</Badge>
-    }
-    if (client.contactStatus === "nao_atendeu") {
-      return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">Não Atendeu</Badge>
-    }
-    if (client.contactStatus === "contato_encerrado") {
-      return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Contato Encerrado</Badge>
-    }
-    return <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">Pendente</Badge>
-  }
-
-  const getScoreColor = (score: number) => {
-    if (score >= 8) return "text-green-600 font-semibold"
-    if (score >= 6) return "text-yellow-600 font-semibold"
-    return "text-red-600 font-semibold"
   }
 
   const getStepStatus = (stepNumber: number) => {
@@ -144,6 +126,32 @@ const handleSaveClientContact = () => {
     }
   };
 
+  const motivoColors: Record<string, string> = {
+    "MUDANCA DE ENDERECO (INVIABILIDADE TECNICA)": "bg-blue-600 text-white",
+    "SOLICITACAO DE AGENDAMENTO NAO ATENDIDA": "bg-blue-700 text-white",
+
+    "INSATISFACAO COM SERVICO PRESTADO": "bg-red-600 text-white",
+    "INSATISFAÇÃO COM STREAMING": "bg-red-500 text-white",
+    "INSATISFACAO COM ATENDIMENTO": "bg-pink-600 text-white",
+    "INSATISFACAO COM VALOR DO SERVICO": "bg-yellow-500 text-white",
+
+    "CORTE DE GASTOS": "bg-yellow-600 text-white",
+    "TROCOU DE PROVEDOR (MELHOR PROPOSTA FINANCEIRA)": "bg-yellow-700 text-white",
+    "TROCOU DE PROVEDOR (PACOTE DADOS MOVEIS INCLUSO)": "bg-purple-700 text-white",
+    "TROCOU DE PROVEDOR (PACOTE DE TV INCLUSO)": "bg-purple-600 text-white",
+    "MUDANCA PARA LOCAL QUE JA POSSUI NMULTIFIBRA": "bg-indigo-600 text-white",
+
+    "TERMINO DE CONTRATO": "bg-green-600 text-white",
+
+    "PAUSA NO CONTRATO": "bg-gray-700 text-white",
+    "PESSOAL NAO DETALHADO": "bg-gray-600 text-white",
+
+    "FALECIMENTO DO TITULAR": "bg-gray-800 text-white",
+    "EMPRESA FECHOU": "bg-zinc-700 text-white",
+
+    "FRAUDE NA CONTRATAÇÃO": "bg-orange-600 text-white",
+    "DIREITO DO CONSUMIDOR 7 DIAS": "bg-orange-700 text-white"
+  };
 
   const StepIndicator = ({ stepNumber, title, status }: StepIndicatorProps) => {
     const getStepStyles = () => {
@@ -158,7 +166,6 @@ const handleSaveClientContact = () => {
           return 'bg-gray-200 text-gray-400 border-gray-200';
       }
     };
-
     return (
       <div className="flex items-center gap-3">
         <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-bold ${getStepStyles()}`}>
@@ -172,7 +179,6 @@ const handleSaveClientContact = () => {
   };
 
 
-  // Se um cliente está selecionado, mostra a tela de detalhes
   if (selectedClient) {
     return (
       <div className="min-h-screen w-full bg-gray-100">
@@ -723,7 +729,7 @@ const handleSaveClientContact = () => {
                         <AlertTriangle className="w-4 h-4 text-red-700 animate-pulse " />
                         Motivo do Cancelamento:
                       </span>
-                      <p className={`max-w-md get text-sm mt-1 px-3 py-2 text-white rounded-lg shadow-md font-semibold animate-fade-in`}>
+                      <p className={`max-w-md get text-sm mt-1 px-3 py-2 ${motivoColors[nextClient.motivo_cancelamento] || 'bg-gray-50 text-gray-600'} rounded-lg shadow-md font-semibold animate-fade-in`}>
                         {nextClient.motivo_cancelamento}
                       </p>
                     </div>
@@ -751,88 +757,7 @@ const handleSaveClientContact = () => {
         </Card>
 
         {/* Tabela de clientes aceitos */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Meus Clientes Aceitos</CardTitle>
-            <CardDescription>
-              {acceptedClients?.length} clientes atribuídos a você
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {acceptedClients && acceptedClients.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left p-3 font-medium">Cliente</th>
-                      <th className="text-left p-3 font-medium">Meses base</th>
-                      <th className="text-left p-3 font-medium">Contato</th>
-                      <th className="text-left p-3 font-medium">Score</th>
-                      <th className="text-left p-3 font-medium">Status</th>
-                      <th className="text-left p-3 font-medium">Canal</th>
-                      <th className="text-left p-3 font-medium">Editar</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {acceptedClients?.map((client) => (
-                      <tr key={client.id_cliente} className="border-b hover:bg-gray-50">
-                        <td className="p-3">
-                          <div>
-                            <div className="font-medium">{client.nome}</div>
-                            <div className="text-sm text-gray-500">{client.email}</div>
-                          </div>
-                        </td>
-                        <td className="p-3">
-                          <div className="text-sm">
-                            <div className="text-gray-500">{client.meses_base} meses na base</div>
-                          </div>
-                        </td>
-                        <td className="p-3">
-                          <div className="text-sm">{client.telefone}</div>
-                        </td>
-                        <td className="p-3">
-                          <span className={getScoreColor(client.score)}>
-                            {client.score}
-                          </span>
-                        </td>
-                        <td className="p-3">
-                          {getStatusBadge(client)}
-                        </td>
-                        <td className="p-3">
-                          {client.contactMade && (
-                            <div title={client.contactChannel} className="flex items-center gap-1 text-sm">
-                              {client.contactChannel === "whatsapp" ? (
-                                <MessageCircle className="h-5 w-5" />
-                              ) : (
-                                <Phone className="h-5 w-5" />
-                              )}
-                              <span className="capitalize">{client.contactChannel}</span>
-                            </div>
-                          )}
-                        </td>
-                        <td className="p-3">
-                          <button
-                            title={client.recovered ? "Cliente já recuperado" : "Editar contato"}
-                            disabled={client.recovered}
-                            className="disabled:cursor-not-allowed disabled:opacity-50 hover:text-blue-600"
-                            onClick={() => setSelectedClient(client)}
-                          >
-                            <Edit className="h-5 w-5" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <Users className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-                <p className="text-gray-500">Você ainda não aceitou nenhum cliente</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <TableClientsAcepted acceptedClients={acceptedClients} setSelectedClient={setSelectedClient} />
       </div>
     </div>
   )

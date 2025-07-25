@@ -25,7 +25,6 @@ export interface StepIndicatorProps {
     status: string
 }
 
-
 export interface DashboardFilters {
   period: string;
   seller: string;
