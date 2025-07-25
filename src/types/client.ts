@@ -1,20 +1,3 @@
-export interface SalesReport {
-    totalClients: number
-    totalContacted: number
-    totalAnswered: number
-    totalRecovered: number
-    conversionRate: number
-    answerRate: number
-    recoveryRate: number
-}
-
-export interface SellerStats {
-    sellerName: string
-    assigned: number
-    contacted: number
-    answered: number
-    recovered: number
-}
 export interface ContratoCancelado {
     id_cliente: string
     id_contrato: string
@@ -29,9 +12,33 @@ export interface ContratoCancelado {
     email: string;
     nome: string;
     meses_base: string;
-    contactStatus?: "em_contato" | "contato_encerrado" | "nao_atendeu" | "recuperado"
+    contactStatus?: "em_contato" | "contato_encerrado" | "nao_atendeu" | "recuperado" | undefined
     assignedTo: string;
     contactChannel?: "whatsapp" | "telefone";
     contactMade: boolean;
     recovered: boolean;
+}
+
+export interface StepIndicatorProps {
+    stepNumber: number,
+    title: string,
+    status: string
+}
+
+
+export interface DashboardFilters {
+  period: string;
+  seller: string;
+  status: string;
+  channel: string;
+  scoreRange: string;
+}
+
+export interface KPIData {
+  totalClients: number;
+  totalAttempts: number;
+  totalAnswered: number;
+  totalRecovered: number;
+  conversionRate: number;
+  averageScore: number;
 }
