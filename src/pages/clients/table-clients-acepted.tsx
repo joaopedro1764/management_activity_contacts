@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { type ContratoCancelado } from "@/types/client";
-import { Edit, MessageCircle, Phone, Users } from "lucide-react";
+import { Edit, Users } from "lucide-react";
 
 interface TableClientsAceptedProps {
     setSelectedClient: (client: ContratoCancelado | null) => void;
@@ -53,7 +53,7 @@ export function TableClientsAcepted({ setSelectedClient, acceptedClients }: Tabl
                                     <th className="text-left p-3 font-medium">Contato</th>
                                     <th className="text-left p-3 font-medium">Score</th>
                                     <th className="text-left p-3 font-medium">Status</th>
-                                    <th className="text-left p-3 font-medium">Canal</th>
+            
                                     <th className="text-left p-3 font-medium">Editar</th>
                                 </tr>
                             </thead>
@@ -82,22 +82,11 @@ export function TableClientsAcepted({ setSelectedClient, acceptedClients }: Tabl
                                         <td className="p-3">
                                             {getStatusBadge(client)}
                                         </td>
-                                        <td className="p-3">
-                                            {client.contactMade && (
-                                                <div title={client.contactChannel} className="flex items-center gap-1 text-sm">
-                                                    {client.contactChannel === "whatsapp" ? (
-                                                        <MessageCircle className="h-5 w-5" />
-                                                    ) : (
-                                                        <Phone className="h-5 w-5" />
-                                                    )}
-                                                    <span className="capitalize">{client.contactChannel}</span>
-                                                </div>
-                                            )}
-                                        </td>
+                                       
                                         <td className="p-3">
                                             <button
-                                                title={client.recovered ? "Cliente já recuperado" : "Editar contato"}
-                                                disabled={client.recovered}
+                                            
+                                                disabled={client.recovered || client.contactStatus === "contato_encerrado"}
                                                 className="disabled:cursor-not-allowed disabled:opacity-50 hover:text-blue-600"
                                                 onClick={() => setSelectedClient(client)}
                                             >

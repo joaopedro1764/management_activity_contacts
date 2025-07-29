@@ -23,16 +23,19 @@
     "axios": "^1.11.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
     "framer-motion": "^12.23.7",
     "lucide-react": "^0.525.0",
     "node": "^20.19.4",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "react-hook-form": "^7.61.1",
     "react-router": "^7.7.0",
     "react-router-dom": "^7.7.0",
     "tailwind-merge": "^3.3.1",
     "tailwindcss": "^4.1.11",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "zod": "^4.0.10"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.1",

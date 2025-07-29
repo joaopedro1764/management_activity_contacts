@@ -6,7 +6,8 @@ import { Phone, Mail, Building, MessageCircle, Check, X, Users, ArrowLeft, Check
 import { usePlanilha } from "@/api/planilha"
 import type { ContratoCancelado, StepIndicatorProps } from "@/types/client"
 import { TableClientsAcepted } from "./table-clients-acepted"
-
+import { assuntoNao, assuntoSim } from "@/lib/assuntos"
+import { format } from "date-fns"
 export const sellers = ["João Vendedor", "Maria Vendedora", "Carlos Vendedor", "Ana Vendedora"]
 
 export const getScoreColor = (score: number) => {
@@ -18,51 +19,60 @@ export const getScoreColor = (score: number) => {
 export function SalesManagement() {
 
   const [selectedClient, setSelectedClient] = useState<ContratoCancelado | null>()
-  const [contactMade, setContactMade] = useState(false)
-  const [answered, setAnswered] = useState(false)
-  const [recovered, setRecovered] = useState(false)
-  const [contactChannel, setContactChannel] = useState("")
-  const [recoveryType, setRecoveryType] = useState("")
-  const [shouldCloseContact, setShouldCloseContact] = useState(false)
-
+  const [contatoFeito, setContatoFeito] = useState(false)
+  const [respondido, setRespondido] = useState(false)
+  const [recuperado, setRecuperado] = useState(false)
+  const [canalDeContato, setCanalDeContato] = useState("")
+  const [tipoDeRecuperacao, setTipoDeRecuperacao] = useState("")
+  const [deveFecharContato, setDeveFecharContato] = useState(false)
+  const [descricaoAtendente, setDescricaoAtendente] = useState("")
   const { data: cancelamentos } = usePlanilha({ aba: "Sheet1" })
-
   const [clients, setClients] = useState<ContratoCancelado[]>()
+
+
 
   const acceptedClients = clients?.filter(client =>
     client.status === "assigned" && client.assignedTo === sellers[0]
   )
-
   useEffect(() => {
-    setClients(cancelamentos)
+    setClients(cancelamentos?.sort(
+      (a, b) => Number(b.score) - Number(a.score)
+    ))
   }, [cancelamentos])
 
-  const nextClient = clients
-    ?.filter(client =>
-      client.status === "available" ||
-      (client.status === "assigned" && client.assignedTo === sellers[0] && !client.contactMade)
+  const nextClient = clients?.find(client =>
+    client.status === "available" ||
+    (
+      client.status === "assigned" &&
+      client.assignedTo === sellers[0] &&
+      !client.contactMade &&
+      (!client.contactStatus || client.contactStatus === "nao_atendeu")
     )
-    .sort((a, b) => a.score - b.score)
-  [0];
+  );
+
+
+  console.log(nextClient)
 
   const handleAcceptClient = () => {
+
     if (nextClient) {
-      const updatedClient = {
+      const updatedClient: ContratoCancelado = {
         ...nextClient,
         contactStatus: "em_contato" as const,
         assignedTo: sellers[0],
+        data_contato_aceitacao: format(Date.now(), "dd/MM/yyyy")
       }
       setClients(clients?.map(client =>
         client.id_cliente === nextClient.id_cliente ? updatedClient : client
       ))
       setSelectedClient(updatedClient)
       // Reset form states
-      setContactMade(false)
-      setAnswered(false)
-      setRecovered(false)
-      setContactChannel("")
-      setRecoveryType("")
-      setShouldCloseContact(false)
+      setContatoFeito(false)
+      setRespondido(false)
+      setRecuperado(false)
+      setCanalDeContato("")
+      setTipoDeRecuperacao("")
+      setDeveFecharContato(false)
     }
   }
 
@@ -73,39 +83,50 @@ export function SalesManagement() {
     }
   }
 
-  type ContactStatus = "em_contato" | "contato_encerrado" | "nao_atendeu" | "recuperado";
-
   const handleSaveClientContact = () => {
-    if (selectedClient) {
-      let newContactStatus: ContactStatus = "em_contato";
+    if (!selectedClient) return;
 
-      if (recovered) {
-        newContactStatus = "recuperado";
-      } else if (contactMade && !answered && shouldCloseContact) {
-        newContactStatus = "contato_encerrado";
-      } else if (contactMade && !answered) {
-        newContactStatus = "nao_atendeu";
-      } else if (contactMade && answered) {
-        newContactStatus = "em_contato";
-      }
+    const dataFinal = format(Date.now(), "dd/MM/yyyy");
 
-      const updatedClient = {
+    const updateClient = (overrides: Partial<ContratoCancelado>) => {
+      const updatedClient: ContratoCancelado = {
         ...selectedClient,
-        status: "assigned" as const,
-        contactMade,
-        answered,
-        recovered,
-        contactChannel: answered ? contactChannel as "whatsapp" | "telefone" : undefined,
-        contactStatus: newContactStatus
+        status: "assigned",
+        contactMade: contatoFeito,
+        recovered: recuperado,
+        assignedTo: sellers[0],
+        contactChannel: respondido ? canalDeContato as "whatsapp" | "telefone" : undefined,
+        ...overrides
       };
-
       setClients(clients?.map(client =>
         client.id_cliente === selectedClient.id_cliente ? updatedClient : client
       ));
+    };
 
-      setSelectedClient(null);
+    if (recuperado) {
+      updateClient({
+        contactStatus: "recuperado",
+        idDiagnostico: tipoDeRecuperacao,
+        descricao_atendente: descricaoAtendente,
+        data_contato_final: dataFinal
+      });
+    } else if (contatoFeito && !respondido && deveFecharContato) {
+      updateClient({
+        contactStatus: "contato_encerrado",
+        idDiagnostico: tipoDeRecuperacao,
+        descricao_atendente: descricaoAtendente,
+        data_contato_final: dataFinal
+      });
+    } else if (contatoFeito && !respondido) {
+      updateClient({ contactStatus: "nao_atendeu" });
+    } else if (!contatoFeito && !respondido && !recuperado) {
+      updateClient({ contactStatus: "em_contato" });
     }
+
+    setDescricaoAtendente("");
+    setSelectedClient(null);
   };
+
 
   const handleBackToDashboard = () => {
     setSelectedClient(null)
@@ -114,13 +135,13 @@ export function SalesManagement() {
   const getStepStatus = (stepNumber: number) => {
     switch (stepNumber) {
       case 1:
-        return contactMade ? 'completed' : 'current';
+        return contatoFeito ? 'completed' : 'current';
       case 2:
-        return !contactMade ? 'disabled' : answered ? 'completed' : 'current';
+        return !contatoFeito ? 'disabled' : respondido ? 'completed' : 'current';
       case 3:
-        return !answered ? 'disabled' : contactChannel ? 'completed' : 'current';
+        return !respondido ? 'disabled' : canalDeContato ? 'completed' : 'current';
       case 4:
-        return !answered ? 'disabled' : recovered ? 'completed' : 'current';
+        return !respondido ? 'disabled' : recuperado ? 'completed' : 'current';
       default:
         return 'disabled';
     }
@@ -178,6 +199,8 @@ export function SalesManagement() {
     );
   };
 
+
+  console.log(clients)
 
   if (selectedClient) {
     return (
@@ -270,16 +293,16 @@ export function SalesManagement() {
                       <p className="text-sm text-gray-600">Você já tentou entrar em contato com este cliente?</p>
                       <div className="flex gap-3">
                         <Button
-                          variant={contactMade ? "default" : "outline"}
+                          variant={contatoFeito ? "default" : "outline"}
                           size="lg"
                           onClick={() => {
-                            setContactMade(true);
-                            if (!contactMade) {
-                              setAnswered(false);
-                              setContactChannel("");
-                              setRecovered(false);
-                              setRecoveryType("");
-                              setShouldCloseContact(false);
+                            setContatoFeito(true);
+                            if (!contatoFeito) {
+                              setRespondido(false);
+                              setCanalDeContato("");
+                              setRecuperado(false);
+                              setTipoDeRecuperacao("");
+                              setDeveFecharContato(false);
                             }
                           }}
                           className="flex items-center gap-2 px-6"
@@ -288,15 +311,15 @@ export function SalesManagement() {
                           Sim, fiz contato
                         </Button>
                         <Button
-                          variant={!contactMade ? "destructive" : "outline"}
+                          variant={!contatoFeito ? "destructive" : "outline"}
                           size="lg"
                           onClick={() => {
-                            setContactMade(false);
-                            setAnswered(false);
-                            setContactChannel("");
-                            setRecovered(false);
-                            setRecoveryType("");
-                            setShouldCloseContact(false);
+                            setContatoFeito(false);
+                            setRespondido(false);
+                            setCanalDeContato("");
+                            setRecuperado(false);
+                            setTipoDeRecuperacao("");
+                            setDeveFecharContato(false);
                           }}
                           className="flex items-center gap-2 px-6"
                         >
@@ -308,7 +331,7 @@ export function SalesManagement() {
                   </div>
 
                   {/* Step 2: Cliente Atendeu */}
-                  {contactMade && (
+                  {contatoFeito && (
                     <>
                       <div className="flex items-center">
                         <ArrowRight className="h-4 w-4 text-blue-500 mx-4" />
@@ -319,15 +342,15 @@ export function SalesManagement() {
                           <p className="text-sm text-gray-600">O cliente respondeu/atendeu seu contato?</p>
                           <div className="flex gap-3">
                             <Button
-                              variant={answered ? "default" : "outline"}
+                              variant={respondido ? "default" : "outline"}
                               size="lg"
                               onClick={() => {
-                                setAnswered(true);
-                                setShouldCloseContact(false);
-                                if (!answered) {
-                                  setContactChannel("");
-                                  setRecovered(false);
-                                  setRecoveryType("");
+                                setRespondido(true);
+                                setDeveFecharContato(false);
+                                if (!respondido) {
+                                  setCanalDeContato("");
+                                  setRecuperado(false);
+                                  setTipoDeRecuperacao("");
                                 }
                               }}
                               className="flex items-center gap-2 px-6"
@@ -336,12 +359,12 @@ export function SalesManagement() {
                               Sim, me atendeu
                             </Button>
                             <Button
-                              variant={!answered ? "destructive" : "outline"}
+                              variant={!respondido ? "destructive" : "outline"}
                               size="lg"
                               onClick={() => {
-                                setAnswered(false);
-                                setContactChannel("");
-                                setRecovered(false);
+                                setRespondido(false);
+                                setCanalDeContato("");
+                                setRecuperado(false);
                               }}
                               className="flex items-center gap-2 px-6"
                             >
@@ -351,7 +374,7 @@ export function SalesManagement() {
                           </div>
 
                           {/* Opção de encerrar contato quando cliente não atender */}
-                          {contactMade && !answered && (
+                          {contatoFeito && !respondido && (
                             <div className="mt-4 p-4 bg-orange-50 border border-orange-200 rounded-lg space-y-3">
                               <div className="flex items-center gap-2">
                                 <PhoneOff className="h-5 w-5 text-orange-600" />
@@ -362,29 +385,61 @@ export function SalesManagement() {
                               </p>
                               <div className="flex gap-3">
                                 <Button
-                                  variant={shouldCloseContact ? "destructive" : "outline"}
+                                  variant={deveFecharContato ? "destructive" : "outline"}
                                   size="sm"
-                                  onClick={() => setShouldCloseContact(true)}
+                                  onClick={() => setDeveFecharContato(true)}
                                   className="flex items-center gap-2"
                                 >
                                   <PhoneOff className="h-4 w-4" />
                                   Encerrar Contato
                                 </Button>
                                 <Button
-                                  variant={!shouldCloseContact ? "default" : "outline"}
+                                  variant={!deveFecharContato ? "default" : "outline"}
                                   size="sm"
-                                  onClick={() => setShouldCloseContact(false)}
+                                  onClick={() => setDeveFecharContato(false)}
                                   className="flex items-center gap-2"
                                 >
                                   <Phone className="h-4 w-4" />
                                   Manter para novas tentativas
                                 </Button>
                               </div>
-                              {shouldCloseContact && (
+                              {deveFecharContato && (
                                 <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded">
                                   <p className="text-sm text-red-700 font-medium">
                                     ⚠️ O contato será encerrado e este cliente não aparecerá mais na sua lista.
                                   </p>
+
+                                  <Select value={tipoDeRecuperacao} onValueChange={setTipoDeRecuperacao}>
+                                    <SelectTrigger className="w-full bg-white mt-2 border-red-300">
+                                      <SelectValue placeholder="Escolha o motivo da não recuperação" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {assuntoNao.map((item) => (
+                                        <SelectItem value={item.id} key={item.id}>
+                                          <div className="flex items-center gap-2">
+                                            <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                                            {item.status}
+                                          </div>
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                  <div className="space-y-2">
+                                    <label className="text-sm font-medium text-red-700">
+                                      Observações adicionais:
+                                    </label>
+                                    <textarea
+                                      value={descricaoAtendente}
+                                      onChange={(e) => setDescricaoAtendente(e.target.value)}
+                                      className="w-full min-h-[100px] p-3 bg-white border border-red-300 rounded-md 
+                                  text-sm text-gray-900 placeholder-red-400
+                                  focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500
+                                  hover:border-red-400 transition-colors duration-200
+                                  resize-none shadow-sm"
+                                      placeholder="Descreva detalhes sobre a tentativa de recuperação..."
+                                      rows={4}
+                                    />
+                                  </div>
                                 </div>
                               )}
                             </div>
@@ -395,7 +450,7 @@ export function SalesManagement() {
                   )}
 
                   {/* Step 3: Canal de Atendimento */}
-                  {contactMade && answered && (
+                  {contatoFeito && respondido && (
                     <>
                       <div className="flex items-center">
                         <ArrowRight className="h-4 w-4 text-blue-500 mx-4" />
@@ -406,25 +461,25 @@ export function SalesManagement() {
                           <p className="text-sm text-gray-600">Por qual meio vocês conversaram?</p>
                           <div className="flex gap-3">
                             <Button
-                              variant={contactChannel === "whatsapp" ? "default" : "outline"}
+                              variant={canalDeContato === "whatsapp" ? "default" : "outline"}
                               size="lg"
-                              onClick={() => setContactChannel("whatsapp")}
+                              onClick={() => setCanalDeContato("whatsapp")}
                               className="flex items-center gap-2 px-6"
                             >
                               <MessageCircle className="h-4 w-4" />
                               WhatsApp
                             </Button>
                             <Button
-                              variant={contactChannel === "telefone" ? "default" : "outline"}
+                              variant={canalDeContato === "telefone" ? "default" : "outline"}
                               size="lg"
-                              onClick={() => setContactChannel("telefone")}
+                              onClick={() => setCanalDeContato("telefone")}
                               className="flex items-center gap-2 px-6"
                             >
                               <Phone className="h-4 w-4" />
                               Ligação
                             </Button>
                           </div>
-                          {answered && !contactChannel && (
+                          {respondido && !canalDeContato && (
                             <div className="flex items-center gap-2 text-orange-600 bg-orange-50 p-3 rounded-lg">
                               <AlertCircle className="h-4 w-4" />
                               <span className="text-sm">Selecione como vocês conversaram para continuar</span>
@@ -436,7 +491,7 @@ export function SalesManagement() {
                   )}
 
                   {/* Step 4: Cliente Recuperado */}
-                  {contactMade && answered && contactChannel && (
+                  {contatoFeito && respondido && canalDeContato && (
                     <>
                       <div className="flex items-center">
                         <ArrowRight className="h-4 w-4 text-blue-500 mx-4" />
@@ -447,18 +502,18 @@ export function SalesManagement() {
                           <p className="text-sm text-gray-600">Conseguiu recuperar o cliente?</p>
                           <div className="flex gap-3">
                             <Button
-                              variant={recovered ? "default" : "outline"}
+                              variant={recuperado ? "default" : "outline"}
                               size="lg"
-                              onClick={() => setRecovered(true)}
+                              onClick={() => setRecuperado(true)}
                               className="flex items-center gap-2 px-6"
                             >
                               <CheckCircle className="h-4 w-4" />
                               Sim, recuperei!
                             </Button>
                             <Button
-                              variant={!recovered ? "destructive" : "outline"}
+                              variant={!recuperado ? "destructive" : "outline"}
                               size="lg"
-                              onClick={() => setRecovered(false)}
+                              onClick={() => setRecuperado(false)}
                               className="flex items-center gap-2 px-6"
                             >
                               <XCircle className="h-4 w-4" />
@@ -467,7 +522,7 @@ export function SalesManagement() {
                           </div>
 
                           {/* Resumo do Atendimento - RECUPERADO */}
-                          {recovered && (
+                          {recuperado && (
                             <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg space-y-3">
                               <div className="flex items-center gap-2">
                                 <CheckCircle className="h-5 w-5 text-green-600" />
@@ -477,49 +532,43 @@ export function SalesManagement() {
                                 <label className="text-sm font-medium text-green-700">
                                   Selecione o tipo de recuperação:
                                 </label>
-                                <Select value={recoveryType} onValueChange={setRecoveryType}>
+                                <Select value={tipoDeRecuperacao} onValueChange={setTipoDeRecuperacao}>
                                   <SelectTrigger className="w-full bg-white border-green-300">
                                     <SelectValue placeholder="Escolha o resultado do atendimento" />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    <SelectItem value="venda-nova-instalacao">
-                                      <div className="flex items-center gap-2">
-                                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                        Venda Concluída - Nova Instalação
-                                      </div>
-                                    </SelectItem>
-                                    <SelectItem value="venda-migracao">
-                                      <div className="flex items-center gap-2">
-                                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                                        Venda Concluída - Migração de Provedor
-                                      </div>
-                                    </SelectItem>
-                                    <SelectItem value="reagendamento">
-                                      <div className="flex items-center gap-2">
-                                        <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                                        Reagendamento de Visita Técnica
-                                      </div>
-                                    </SelectItem>
-                                    <SelectItem value="reativacao">
-                                      <div className="flex items-center gap-2">
-                                        <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                                        Reativação de Contrato Cancelado
-                                      </div>
-                                    </SelectItem>
-                                    <SelectItem value="upgrade">
-                                      <div className="flex items-center gap-2">
-                                        <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
-                                        Upgrade de Plano Existente
-                                      </div>
-                                    </SelectItem>
+                                    {assuntoSim.map((item) => (
+                                      <SelectItem value={item.id}>
+                                        <div className="flex items-center gap-2">
+                                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                          {item.status}
+                                        </div>
+                                      </SelectItem>
+                                    ))}
                                   </SelectContent>
                                 </Select>
+                                <div className="space-y-2">
+                                  <label className="text-sm font-medium text-green-700">
+                                    Observações adicionais:
+                                  </label>
+                                  <textarea
+                                    value={descricaoAtendente}
+                                    onChange={(e) => setDescricaoAtendente(e.target.value)}
+                                    className="w-full min-h-[100px] p-3 bg-white border border-green-300 rounded-md 
+                                  text-sm text-gray-900 placeholder-green-400
+                                  focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500
+                                  hover:border-green-400 transition-colors duration-200
+                                  resize-none shadow-sm"
+                                    placeholder="Descreva detalhes sobre a tentativa de recuperação..."
+                                    rows={4}
+                                  />
+                                </div>
                               </div>
                             </div>
                           )}
 
                           {/* Resumo do Atendimento - NÃO RECUPERADO */}
-                          {!recovered && contactMade && answered && contactChannel && (
+                          {!recuperado && contatoFeito && respondido && canalDeContato && (
                             <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg space-y-3">
                               <div className="flex items-center gap-2">
                                 <XCircle className="h-5 w-5 text-red-600" />
@@ -529,61 +578,39 @@ export function SalesManagement() {
                                 <label className="text-sm font-medium text-red-700">
                                   Selecione o motivo da não recuperação:
                                 </label>
-                                <Select value={recoveryType} onValueChange={setRecoveryType}>
+                                <Select value={tipoDeRecuperacao} onValueChange={setTipoDeRecuperacao}>
                                   <SelectTrigger className="w-full bg-white border-red-300">
                                     <SelectValue placeholder="Escolha o motivo da não recuperação" />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    <SelectItem value="preco-alto">
-                                      <div className="flex items-center gap-2">
-                                        <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                                        Preço considerado alto
-                                      </div>
-                                    </SelectItem>
-                                    <SelectItem value="satisfeito-atual">
-                                      <div className="flex items-center gap-2">
-                                        <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                                        Satisfeito com provedor atual
-                                      </div>
-                                    </SelectItem>
-                                    <SelectItem value="problemas-tecnicos">
-                                      <div className="flex items-center gap-2">
-                                        <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                                        Receio de problemas técnicos
-                                      </div>
-                                    </SelectItem>
-                                    <SelectItem value="nao-interesse">
-                                      <div className="flex items-center gap-2">
-                                        <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
-                                        Não tem interesse no momento
-                                      </div>
-                                    </SelectItem>
-                                    <SelectItem value="mudanca-endereco">
-                                      <div className="flex items-center gap-2">
-                                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                                        Mudança de endereço
-                                      </div>
-                                    </SelectItem>
-                                    <SelectItem value="questoes-financeiras">
-                                      <div className="flex items-center gap-2">
-                                        <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                                        Questões financeiras
-                                      </div>
-                                    </SelectItem>
-                                    <SelectItem value="experiencia-ruim">
-                                      <div className="flex items-center gap-2">
-                                        <div className="w-2 h-2 bg-pink-500 rounded-full"></div>
-                                        Experiência ruim anterior
-                                      </div>
-                                    </SelectItem>
-                                    <SelectItem value="outros">
-                                      <div className="flex items-center gap-2">
-                                        <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
-                                        Outros motivos
-                                      </div>
-                                    </SelectItem>
+                                    {assuntoNao.map((item) => (
+                                      <SelectItem value={item.id} key={item.id}>
+                                        <div className="flex items-center gap-2">
+                                          <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                                          {item.status}
+                                        </div>
+                                      </SelectItem>
+                                    ))}
                                   </SelectContent>
                                 </Select>
+                              </div>
+
+                              {/* Textarea estilizado */}
+                              <div className="space-y-2">
+                                <label className="text-sm font-medium text-red-700">
+                                  Observações adicionais:
+                                </label>
+                                <textarea
+                                  value={descricaoAtendente}
+                                  onChange={(e) => setDescricaoAtendente(e.target.value)}
+                                  className="w-full min-h-[100px] p-3 bg-white border border-red-300 rounded-md 
+                                  text-sm text-gray-900 placeholder-red-400
+                                  focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500
+                                  hover:border-red-400 transition-colors duration-200
+                                  resize-none shadow-sm"
+                                  placeholder="Descreva detalhes sobre a tentativa de recuperação..."
+                                  rows={4}
+                                />
                               </div>
                             </div>
                           )}
@@ -604,45 +631,45 @@ export function SalesManagement() {
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Contato feito:</span>
-                    <span className={contactMade ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
-                      {contactMade ? "✓ Sim" : "✗ Não"}
+                    <span className={contatoFeito ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
+                      {contatoFeito ? "✓ Sim" : "✗ Não"}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Cliente atendeu:</span>
-                    <span className={answered ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
-                      {contactMade ? (answered ? "✓ Sim" : "✗ Não") : "—"}
+                    <span className={respondido ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
+                      {contatoFeito ? (respondido ? "✓ Sim" : "✗ Não") : "—"}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Canal usado:</span>
                     <span className="font-medium">
-                      {contactChannel ? (contactChannel === "whatsapp" ? "📱 WhatsApp" : "📞 Telefone") : "—"}
+                      {canalDeContato ? (canalDeContato === "whatsapp" ? "📱 WhatsApp" : "📞 Telefone") : "—"}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Cliente recuperado:</span>
-                    <span className={recovered ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
-                      {answered ? (recovered ? "✓ Sim" : "✗ Não") : "—"}
+                    <span className={recuperado ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
+                      {respondido ? (recuperado ? "✓ Sim" : "✗ Não") : "—"}
                     </span>
                   </div>
-                  {contactMade && !answered && (
+                  {contatoFeito && !respondido && (
                     <div className="flex justify-between col-span-2 pt-2 border-t">
                       <span className="text-gray-600">Ação escolhida:</span>
-                      <span className={shouldCloseContact ? "text-red-600 font-medium" : "text-blue-600 font-medium"}>
-                        {shouldCloseContact ? "🚫 Encerrar Contato" : "🔄 Manter para novas tentativas"}
+                      <span className={deveFecharContato ? "text-red-600 font-medium" : "text-blue-600 font-medium"}>
+                        {deveFecharContato ? "🚫 Encerrar Contato" : "🔄 Manter para novas tentativas"}
                       </span>
                     </div>
                   )}
-                  {recovered && recoveryType && (
+                  {recuperado && tipoDeRecuperacao && (
                     <div className="flex justify-between col-span-2 pt-2 border-t">
                       <span className="text-gray-600">Tipo de recuperação:</span>
                       <span className="font-medium text-green-600">
-                        {recoveryType === "venda-nova-instalacao" && "🏠 Nova Instalação"}
-                        {recoveryType === "venda-migracao" && "🔄 Migração de Provedor"}
-                        {recoveryType === "reagendamento" && "📅 Reagendamento"}
-                        {recoveryType === "reativacao" && "🔄 Reativação"}
-                        {recoveryType === "upgrade" && "⬆️ Upgrade de Plano"}
+                        {tipoDeRecuperacao === "venda-nova-instalacao" && "🏠 Nova Instalação"}
+                        {tipoDeRecuperacao === "venda-migracao" && "🔄 Migração de Provedor"}
+                        {tipoDeRecuperacao === "reagendamento" && "📅 Reagendamento"}
+                        {tipoDeRecuperacao === "reativacao" && "🔄 Reativação"}
+                        {tipoDeRecuperacao === "upgrade" && "⬆️ Upgrade de Plano"}
                       </span>
                     </div>
                   )}
@@ -655,7 +682,7 @@ export function SalesManagement() {
               <Button
                 onClick={handleSaveClientContact}
                 size="lg"
-                disabled={answered && !contactChannel}
+                disabled={respondido && !canalDeContato}
                 className="px-8 py-3 text-lg"
               >
                 <Save className="h-5 w-5 mr-2" />
