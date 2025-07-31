@@ -1,19 +1,24 @@
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Phone, Mail, Building, MessageCircle, Check, X, Users, ArrowLeft, CheckCircle, XCircle, Save, ArrowRight, AlertCircle, User, PhoneOff, AlertTriangle } from "lucide-react"
+import { Phone, Mail, Building, MessageCircle, Check, X, Users, ArrowLeft, CheckCircle, XCircle, Save, ArrowRight, AlertCircle, PhoneOff, AlertTriangle, Contact, ClipboardList } from "lucide-react"
 import { usePlanilha } from "@/api/planilha"
 import type { ContratoCancelado, StepIndicatorProps } from "@/types/client"
-import { TableClientsAcepted } from "./table-clients-acepted"
 import { assuntoNao, assuntoSim } from "@/lib/assuntos"
 import { format } from "date-fns"
+import { SelectRecuperacao } from "@/components/ui/SelectRecuperacao"
+import { toast } from "sonner"
 export const sellers = ["João Vendedor", "Maria Vendedora", "Carlos Vendedor", "Ana Vendedora"]
 
 export const getScoreColor = (score: number) => {
   if (score >= 8) return "text-green-600 font-semibold"
   if (score >= 6) return "text-yellow-600 font-semibold"
   return "text-red-600 font-semibold"
+}
+
+interface TipoRecuperacao {
+  id: string;
+  status: string;
 }
 
 export function SalesManagement() {
@@ -23,17 +28,22 @@ export function SalesManagement() {
   const [respondido, setRespondido] = useState(false)
   const [recuperado, setRecuperado] = useState(false)
   const [canalDeContato, setCanalDeContato] = useState("")
-  const [tipoDeRecuperacao, setTipoDeRecuperacao] = useState("")
+  const [tipoDeRecuperacao, setTipoDeRecuperacao] = useState<TipoRecuperacao>({
+    id: "",
+    status: ""
+  });
+
   const [deveFecharContato, setDeveFecharContato] = useState(false)
   const [descricaoAtendente, setDescricaoAtendente] = useState("")
   const { data: cancelamentos } = usePlanilha({ aba: "Sheet1" })
   const [clients, setClients] = useState<ContratoCancelado[]>()
 
 
+  /* 
+    const acceptedClients = clients?.filter(client =>
+      client.status === "assigned" && client.assignedTo === sellers[0]
+    ) */
 
-  const acceptedClients = clients?.filter(client =>
-    client.status === "assigned" && client.assignedTo === sellers[0]
-  )
   useEffect(() => {
     setClients(cancelamentos?.sort(
       (a, b) => Number(b.score) - Number(a.score)
@@ -51,7 +61,16 @@ export function SalesManagement() {
   );
 
 
-  console.log(nextClient)
+
+  const options = recuperado ? assuntoSim : assuntoNao;
+
+  // Quando a lista de opções mudar, resetar o valor selecionado se não existir mais
+  useEffect(() => {
+    const stillExists = options.some(opt => opt.id === tipoDeRecuperacao.id);
+    if (!stillExists) {
+      setTipoDeRecuperacao({ id: "", status: "" }); // resetar se o valor não existir mais
+    }
+  }, [options]);
 
   const handleAcceptClient = () => {
 
@@ -71,10 +90,12 @@ export function SalesManagement() {
       setRespondido(false)
       setRecuperado(false)
       setCanalDeContato("")
-      setTipoDeRecuperacao("")
+      setTipoDeRecuperacao({ id: "", status: "" })
       setDeveFecharContato(false)
+      toast.success('Cliente aceito com sucesso, cheque sua lista')
     }
   }
+
 
   const handleSkipClient = () => {
     if (nextClient) {
@@ -87,7 +108,6 @@ export function SalesManagement() {
     if (!selectedClient) return;
 
     const dataFinal = format(Date.now(), "dd/MM/yyyy");
-
     const updateClient = (overrides: Partial<ContratoCancelado>) => {
       const updatedClient: ContratoCancelado = {
         ...selectedClient,
@@ -96,24 +116,41 @@ export function SalesManagement() {
         recovered: recuperado,
         assignedTo: sellers[0],
         contactChannel: respondido ? canalDeContato as "whatsapp" | "telefone" : undefined,
-        ...overrides
+        ...overrides,
       };
-      setClients(clients?.map(client =>
-        client.id_cliente === selectedClient.id_cliente ? updatedClient : client
-      ));
+
+      // Atualiza o estado da UI
+      const novosClientes = clients?.map(client =>
+        client.id_cliente === updatedClient.id_cliente ? updatedClient : client
+      );
+      setClients(novosClientes);
+
+      // --- Atualiza apenas os clientes alterados na sessionStorage ---
+      const sessionKey = "clientesAtualizados";
+
+      const salvos = sessionStorage.getItem(sessionKey);
+      const atualizados: ContratoCancelado[] = salvos ? JSON.parse(salvos) : [];
+
+      const atualizadosSemEsse = atualizados.filter(
+        c => c.id_cliente !== updatedClient.id_cliente
+      );
+
+      const novosAtualizados = [...atualizadosSemEsse, updatedClient];
+
+      sessionStorage.setItem(sessionKey, JSON.stringify(novosAtualizados));
     };
 
     if (recuperado) {
       updateClient({
         contactStatus: "recuperado",
-        idDiagnostico: tipoDeRecuperacao,
+        idDiagnostico: tipoDeRecuperacao.id,
         descricao_atendente: descricaoAtendente,
         data_contato_final: dataFinal
       });
     } else if (contatoFeito && !respondido && deveFecharContato) {
       updateClient({
         contactStatus: "contato_encerrado",
-        idDiagnostico: tipoDeRecuperacao,
+        idDiagnostico: tipoDeRecuperacao.id,
         descricao_atendente: descricaoAtendente,
         data_contato_final: dataFinal
       });
@@ -122,7 +159,7 @@ export function SalesManagement() {
     } else if (!contatoFeito && !respondido && !recuperado) {
       updateClient({ contactStatus: "em_contato" });
     }
-
+    toast.success('Atualização salva com sucesso, cheque sua lista')
     setDescricaoAtendente("");
     setSelectedClient(null);
   };
@@ -199,30 +236,33 @@ export function SalesManagement() {
     );
   };
 
-
-  console.log(clients)
-
   if (selectedClient) {
     return (
       <div className="min-h-screen w-full bg-gray-100">
         <div className="p-6 space-y-6">
           {/* Header com botão voltar */}
           <div className="flex items-center gap-4">
-            <Button variant="outline" onClick={handleBackToDashboard} className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={handleBackToDashboard}
+              className="flex items-center gap-2 bg-white hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 border-blue-300 text-blue-700 hover:text-blue-800 transition-all duration-300"
+            >
               <ArrowLeft className="h-4 w-4" />
               Voltar
             </Button>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Detalhes do Cliente</h1>
-              <p className="text-gray-600 mt-1">Gerencie o contato com o cliente</p>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
+                Detalhes do Cliente
+              </h1>
+              <p className="text-slate-600 mt-1">Gerencie o contato com o cliente</p>
             </div>
           </div>
 
           {/* Card de informações do cliente */}
-          <Card className="w-full">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
+          <Card className="w-full border-0 shadow-xl bg-gradient-to-br from-white to-slate-50">
+            <CardHeader className="bg-gradient-to-r from-slate-50 to-blue-50 border-b border-slate-100">
+              <CardTitle className="flex items-center gap-2 text-slate-800">
+                <Users className="h-5 w-5 text-blue-600" />
                 Informações do Cliente
               </CardTitle>
             </CardHeader>
@@ -230,36 +270,33 @@ export function SalesManagement() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <div>
-                    <h3 className="text-2xl font-semibold text-gray-900">{selectedClient.nome}</h3>
+                    <h3 className="text-2xl font-semibold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
+                      {selectedClient.nome}
+                    </h3>
                   </div>
-
                   <div className="space-y-3">
                     <div className="flex items-center gap-3 text-sm">
-                      <Phone className="h-4 w-4 text-gray-500" />
-                      <span className="font-medium">{selectedClient.telefone}</span>
+                      <Phone className="h-4 w-4 text-emerald-600" />
+                      <span className="font-medium text-slate-700">{selectedClient.telefone}</span>
                     </div>
                     <div className="flex items-center gap-3 text-sm">
-                      <Mail className="h-4 w-4 text-gray-500" />
-                      <span className="font-medium">{selectedClient.email}</span>
+                      <Mail className="h-4 w-4 text-blue-600" />
+                      <span className="font-medium text-slate-700">{selectedClient.email}</span>
                     </div>
                     <div className="flex items-center gap-3 text-sm">
-                      <Building className="h-4 w-4 text-gray-500" />
-                      <span>Na base há {selectedClient.meses_base} meses</span>
+                      <Building className="h-4 w-4 text-purple-600" />
+                      <span className="text-slate-700">Na base há {selectedClient.meses_base} meses</span>
                     </div>
                   </div>
                 </div>
-
                 <div className="space-y-4">
                   <div>
-                    <span className="text-sm font-medium text-gray-700">Score Interno:</span>
-                    <span className={`ml-2 text-xl ${getScoreColor(selectedClient.score)}`}>
-                      {selectedClient.score}
-                    </span>
+                    <span className="text-sm font-medium text-slate-700">Score Interno:</span>
+                    <span className={`ml-2 text-xl ${getScoreColor(selectedClient.score)}`}>{selectedClient.score}</span>
                   </div>
-
                   <div>
-                    <span className="text-sm font-medium text-gray-700">Motivo do Cancelamento:</span>
-                    <p className="text-sm text-gray-600 mt-1 p-3 bg-gray-50 rounded-md">
+                    <span className="text-sm font-medium text-slate-700">Motivo do Cancelamento:</span>
+                    <p className="text-sm text-slate-600 mt-1 fontbold p-3 bg-gradient-to-r from-slate-50 to-blue-50 rounded-md border border-slate-200">
                       {selectedClient.motivo_cancelamento}
                     </p>
                   </div>
@@ -268,357 +305,343 @@ export function SalesManagement() {
             </CardContent>
           </Card>
 
-          {/* Card de status do contato melhorado */}
-          <div className="max-w-2xl mx-auto space-y-6">
-            {/* Header */}
-            <div className="text-center space-y-2">
-              <h2 className="text-2xl font-bold text-gray-800">Acompanhamento do Cliente</h2>
-              <p className="text-gray-600">Registre o progresso do seu contato seguindo os passos abaixo</p>
-            </div>
+          {/* Card de status do contato horizontal */}
+          <div className="w-full space-y-6">
 
-            {/* Progress Steps */}
-            <Card className="border-2 border-blue-100">
-              <CardHeader className="bg-blue-50">
-                <CardTitle className="flex items-center gap-2 text-blue-800">
-                  <User className="h-5 w-5" />
+            {/* Progress Steps Horizontal */}
+            <Card className="border-0 shadow-2xl bg-gradient-to-br from-white via-blue-50 to-indigo-50">
+              <CardHeader>
+                <CardTitle className="flex items-center text-xl font-medium gap-2">
+                  <Contact className="h-8 w-8 text-blue-500" />
                   Progresso do Contato
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6">
-                <div className="space-y-6">
+                {/* Steps Indicator */}
+                <div className="flex items-center justify-between mb-8">
+                  <StepIndicator stepNumber={1} title="Tentativa de Contato" status={getStepStatus(1)} />
+                  <ArrowRight className="h-6 w-6 text-gradient-to-r from-blue-400 to-indigo-500 mx-2" />
+                  <StepIndicator stepNumber={2} title="Resposta do Cliente" status={getStepStatus(2)} />
+                  <ArrowRight className="h-6 w-6 text-gradient-to-r from-blue-400 to-indigo-500 mx-2" />
+                  <StepIndicator stepNumber={3} title="Canal de Comunicação" status={getStepStatus(3)} />
+                  <ArrowRight className="h-6 w-6 text-gradient-to-r from-blue-400 to-indigo-500 mx-2" />
+                  <StepIndicator stepNumber={4} title="Resultado Final" status={getStepStatus(4)} />
+                </div>
+
+                {/* Steps Content Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                   {/* Step 1: Contato Realizado */}
-                  <div className="space-y-3">
-                    <StepIndicator stepNumber={1} title="Tentativa de Contato" status={getStepStatus(1)} />
-                    <div className="ml-11 space-y-3">
-                      <p className="text-sm text-gray-600">Você já tentou entrar em contato com este cliente?</p>
-                      <div className="flex gap-3">
-                        <Button
-                          variant={contatoFeito ? "default" : "outline"}
-                          size="lg"
-                          onClick={() => {
-                            setContatoFeito(true);
-                            if (!contatoFeito) {
-                              setRespondido(false);
-                              setCanalDeContato("");
-                              setRecuperado(false);
-                              setTipoDeRecuperacao("");
-                              setDeveFecharContato(false);
-                            }
-                          }}
-                          className="flex items-center gap-2 px-6"
-                        >
-                          <CheckCircle className="h-4 w-4" />
-                          Sim, fiz contato
-                        </Button>
-                        <Button
-                          variant={!contatoFeito ? "destructive" : "outline"}
-                          size="lg"
-                          onClick={() => {
-                            setContatoFeito(false);
-                            setRespondido(false);
-                            setCanalDeContato("");
-                            setRecuperado(false);
-                            setTipoDeRecuperacao("");
-                            setDeveFecharContato(false);
-                          }}
-                          className="flex items-center gap-2 px-6"
-                        >
-                          <XCircle className="h-4 w-4" />
-                          Ainda não tentei
-                        </Button>
-                      </div>
+                  <div className="space-y-4 p-4 bg-gradient-to-br from-violet-50 to-purple-100 rounded-lg border border-violet-200 shadow-md hover:shadow-lg transition-all duration-300">
+                    <h3 className="font-semibold text-violet-800">1. Tentativa de Contato</h3>
+                    <p className="text-sm text-violet-700">Você já tentou entrar em contato com este cliente?</p>
+                    <div className="space-y-2">
+                      <Button
+                        variant={contatoFeito ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => {
+                          setContatoFeito(true)
+                          if (!contatoFeito) {
+                            setRespondido(false)
+                            setCanalDeContato("")
+                            setRecuperado(false)
+                            setTipoDeRecuperacao({ id: "", status: "" })
+                            setDeveFecharContato(false)
+                          }
+                        }}
+                        className={`w-full flex items-center gap-2 transition-all duration-300 ${contatoFeito
+                          ? "bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 shadow-lg shadow-emerald-200 text-white"
+                          : "hover:bg-green-600"
+                          }`}
+                      >
+                        <CheckCircle className="h-4 w-4" />
+                        Sim, fiz contato
+                      </Button>
+                      <Button
+                        variant={!contatoFeito ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => {
+                          setContatoFeito(false)
+                          setRespondido(false)
+                          setCanalDeContato("")
+                          setRecuperado(false)
+                          setTipoDeRecuperacao({ id: "", status: "" })
+                          setDeveFecharContato(false)
+                        }}
+                        className={`w-full flex items-center gap-2 transition-all duration-300 ${!contatoFeito
+                          ? "bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 shadow-lg shadow-red-200 text-white"
+                          : "hover:bg-red-600"
+                          }`}
+                      >
+                        <XCircle className="h-4 w-4" />
+                        Ainda não tentei
+                      </Button>
                     </div>
                   </div>
 
                   {/* Step 2: Cliente Atendeu */}
-                  {contatoFeito && (
-                    <>
-                      <div className="flex items-center">
-                        <ArrowRight className="h-4 w-4 text-blue-500 mx-4" />
-                      </div>
-                      <div className="space-y-3">
-                        <StepIndicator stepNumber={2} title="Resposta do Cliente" status={getStepStatus(2)} />
-                        <div className="ml-11 space-y-3">
-                          <p className="text-sm text-gray-600">O cliente respondeu/atendeu seu contato?</p>
-                          <div className="flex gap-3">
-                            <Button
-                              variant={respondido ? "default" : "outline"}
-                              size="lg"
-                              onClick={() => {
-                                setRespondido(true);
-                                setDeveFecharContato(false);
-                                if (!respondido) {
-                                  setCanalDeContato("");
-                                  setRecuperado(false);
-                                  setTipoDeRecuperacao("");
-                                }
-                              }}
-                              className="flex items-center gap-2 px-6"
-                            >
-                              <CheckCircle className="h-4 w-4" />
-                              Sim, me atendeu
-                            </Button>
-                            <Button
-                              variant={!respondido ? "destructive" : "outline"}
-                              size="lg"
-                              onClick={() => {
-                                setRespondido(false);
-                                setCanalDeContato("");
-                                setRecuperado(false);
-                              }}
-                              className="flex items-center gap-2 px-6"
-                            >
-                              <XCircle className="h-4 w-4" />
-                              Não atendeu
-                            </Button>
-                          </div>
-
-                          {/* Opção de encerrar contato quando cliente não atender */}
-                          {contatoFeito && !respondido && (
-                            <div className="mt-4 p-4 bg-orange-50 border border-orange-200 rounded-lg space-y-3">
-                              <div className="flex items-center gap-2">
-                                <PhoneOff className="h-5 w-5 text-orange-600" />
-                                <h4 className="text-sm font-semibold text-orange-800">Cliente não atendeu</h4>
-                              </div>
-                              <p className="text-sm text-orange-700">
-                                Você pode optar por encerrar o contato com este cliente ou manter para futuras tentativas.
-                              </p>
-                              <div className="flex gap-3">
-                                <Button
-                                  variant={deveFecharContato ? "destructive" : "outline"}
-                                  size="sm"
-                                  onClick={() => setDeveFecharContato(true)}
-                                  className="flex items-center gap-2"
-                                >
-                                  <PhoneOff className="h-4 w-4" />
-                                  Encerrar Contato
-                                </Button>
-                                <Button
-                                  variant={!deveFecharContato ? "default" : "outline"}
-                                  size="sm"
-                                  onClick={() => setDeveFecharContato(false)}
-                                  className="flex items-center gap-2"
-                                >
-                                  <Phone className="h-4 w-4" />
-                                  Manter para novas tentativas
-                                </Button>
-                              </div>
-                              {deveFecharContato && (
-                                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded">
-                                  <p className="text-sm text-red-700 font-medium">
-                                    ⚠️ O contato será encerrado e este cliente não aparecerá mais na sua lista.
-                                  </p>
-
-                                  <Select value={tipoDeRecuperacao} onValueChange={setTipoDeRecuperacao}>
-                                    <SelectTrigger className="w-full bg-white mt-2 border-red-300">
-                                      <SelectValue placeholder="Escolha o motivo da não recuperação" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {assuntoNao.map((item) => (
-                                        <SelectItem value={item.id} key={item.id}>
-                                          <div className="flex items-center gap-2">
-                                            <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                                            {item.status}
-                                          </div>
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                  <div className="space-y-2">
-                                    <label className="text-sm font-medium text-red-700">
-                                      Observações adicionais:
-                                    </label>
-                                    <textarea
-                                      value={descricaoAtendente}
-                                      onChange={(e) => setDescricaoAtendente(e.target.value)}
-                                      className="w-full min-h-[100px] p-3 bg-white border border-red-300 rounded-md 
-                                  text-sm text-gray-900 placeholder-red-400
-                                  focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500
-                                  hover:border-red-400 transition-colors duration-200
-                                  resize-none shadow-sm"
-                                      placeholder="Descreva detalhes sobre a tentativa de recuperação..."
-                                      rows={4}
-                                    />
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
+                  <div
+                    className={`space-y-4 p-4 rounded-lg border shadow-md hover:shadow-lg transition-all duration-300 ${contatoFeito
+                      ? "bg-gradient-to-br from-cyan-50 to-blue-100 border-cyan-200"
+                      : "bg-gradient-to-br from-slate-100 to-slate-200 border-slate-300"
+                      }`}
+                  >
+                    <h3 className={`font-semibold ${contatoFeito ? "text-cyan-800" : "text-slate-500"}`}>
+                      2. Resposta do Cliente
+                    </h3>
+                    {contatoFeito ? (
+                      <>
+                        <p className="text-sm text-cyan-700">O cliente respondeu/atendeu seu contato?</p>
+                        <div className="space-y-2">
+                          <Button
+                            variant={respondido ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => {
+                              setRespondido(true)
+                              setDeveFecharContato(false)
+                              if (!respondido) {
+                                setCanalDeContato("")
+                                setRecuperado(false)
+                                setTipoDeRecuperacao({
+                                  id: "",
+                                  status: ""
+                                })
+                              }
+                            }}
+                            className={`w-full flex items-center gap-2 transition-all duration-300 ${respondido
+                              ? "bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 shadow-lg shadow-emerald-200 text-white"
+                              : "hover:bg-green-600"
+                              }`}
+                          >
+                            <CheckCircle className="h-4 w-4" />
+                            Sim, me atendeu
+                          </Button>
+                          <Button
+                            variant={!respondido ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => {
+                              setRespondido(false)
+                              setCanalDeContato("")
+                              setRecuperado(false)
+                            }}
+                            className={`w-full flex items-center gap-2 transition-all duration-300 ${!respondido
+                              ? "bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 shadow-lg shadow-red-200 text-white"
+                              : "hover:bg-red-700"
+                              }`}
+                          >
+                            <XCircle className="h-4 w-4" />
+                            Não atendeu
+                          </Button>
                         </div>
-                      </div>
-                    </>
-                  )}
+
+                        {/* Opção de encerrar contato quando cliente não atender */}
+                        {!respondido && (
+                          <div className="mt-4 p-3 bg-gradient-to-r from-amber-50 to-orange-100 border border-amber-300 rounded-lg space-y-3 shadow-inner">
+                            <div className="flex items-center gap-2">
+                              <PhoneOff className="h-4 w-4 text-amber-700" />
+                              <h4 className="text-xs font-semibold text-amber-800">Cliente não atendeu</h4>
+                            </div>
+                            <div className="space-y-2">
+                              <Button
+                                variant={deveFecharContato ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => setDeveFecharContato(true)}
+                                className={`w-full text-xs transition-all duration-300 ${deveFecharContato
+                                  ? "bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 text-white shadow-lg shadow-red-200"
+                                  : "hover:bg-red-700"
+                                  }`}
+                              >
+                                Encerrar Contato
+                              </Button>
+                              <Button
+                                variant={!deveFecharContato ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => setDeveFecharContato(false)}
+                                className={`w-full text-xs transition-all duration-300 ${!deveFecharContato
+                                  ? "bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 text-white shadow-lg shadow-emerald-200"
+                                  : "hover:bg-green-600"
+                                  }`}
+                              >
+                                Manter tentativas
+                              </Button>
+                            </div>
+                            {deveFecharContato && (
+                              <div className="space-y-2">
+                                <SelectRecuperacao
+                                  options={assuntoNao}
+                                  value={tipoDeRecuperacao}
+                                  setValue={setTipoDeRecuperacao}
+                                  placeholder="Motivo de não recuperação"
+                                  recuperado={recuperado}
+                                />
+
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-sm text-slate-500">Complete o passo anterior</p>
+                    )}
+                  </div>
 
                   {/* Step 3: Canal de Atendimento */}
-                  {contatoFeito && respondido && (
-                    <>
-                      <div className="flex items-center">
-                        <ArrowRight className="h-4 w-4 text-blue-500 mx-4" />
-                      </div>
-                      <div className="space-y-3">
-                        <StepIndicator stepNumber={3} title="Canal de Comunicação" status={getStepStatus(3)} />
-                        <div className="ml-11 space-y-3">
-                          <p className="text-sm text-gray-600">Por qual meio vocês conversaram?</p>
-                          <div className="flex gap-3">
-                            <Button
-                              variant={canalDeContato === "whatsapp" ? "default" : "outline"}
-                              size="lg"
-                              onClick={() => setCanalDeContato("whatsapp")}
-                              className="flex items-center gap-2 px-6"
-                            >
-                              <MessageCircle className="h-4 w-4" />
-                              WhatsApp
-                            </Button>
-                            <Button
-                              variant={canalDeContato === "telefone" ? "default" : "outline"}
-                              size="lg"
-                              onClick={() => setCanalDeContato("telefone")}
-                              className="flex items-center gap-2 px-6"
-                            >
-                              <Phone className="h-4 w-4" />
-                              Ligação
-                            </Button>
-                          </div>
-                          {respondido && !canalDeContato && (
-                            <div className="flex items-center gap-2 text-orange-600 bg-orange-50 p-3 rounded-lg">
-                              <AlertCircle className="h-4 w-4" />
-                              <span className="text-sm">Selecione como vocês conversaram para continuar</span>
-                            </div>
-                          )}
+                  <div
+                    className={`space-y-4 p-4 rounded-lg border shadow-md hover:shadow-lg transition-all duration-300 ${contatoFeito && respondido
+                      ? "bg-gradient-to-br from-indigo-50 to-blue-100 border-indigo-200"
+                      : "bg-gradient-to-br from-slate-100 to-slate-200 border-slate-300"
+                      }`}
+                  >
+                    <h3 className={`font-semibold ${contatoFeito && respondido ? "text-indigo-800" : "text-slate-500"}`}>
+                      3. Canal de Comunicação
+                    </h3>
+                    {contatoFeito && respondido ? (
+                      <>
+                        <p className="text-sm text-indigo-700">Por qual meio vocês conversaram?</p>
+                        <div className="space-y-2">
+                          <Button
+                            variant={canalDeContato === "whatsapp" ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setCanalDeContato("whatsapp")}
+                            className={`w-full flex items-center gap-2 transition-all duration-300 ${canalDeContato === "whatsapp"
+                              ? "bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 shadow-lg shadow-blue-200 text-white"
+                              : "hover:bg-blue-700"
+                              }`}
+                          >
+                            <MessageCircle className="h-4 w-4" />
+                            WhatsApp
+                          </Button>
+                          <Button
+                            variant={canalDeContato === "telefone" ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setCanalDeContato("telefone")}
+                            className={`w-full flex items-center gap-2 transition-all duration-300 ${canalDeContato === "telefone"
+                              ? "bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 shadow-lg shadow-blue-200 text-white"
+                              : "hover:bg-blue-700"
+                              }`}
+                          >
+                            <Phone className="h-4 w-4" />
+                            Ligação
+                          </Button>
                         </div>
-                      </div>
-                    </>
-                  )}
+                        {!canalDeContato && (
+                          <div className="flex items-center gap-2 text-orange-600 bg-orange-50 p-2 rounded text-xs">
+                            <AlertCircle className="h-3 w-3" />
+                            <span>Selecione o canal</span>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-sm text-slate-500">Complete os passos anteriores</p>
+                    )}
+                  </div>
 
                   {/* Step 4: Cliente Recuperado */}
-                  {contatoFeito && respondido && canalDeContato && (
-                    <>
-                      <div className="flex items-center">
-                        <ArrowRight className="h-4 w-4 text-blue-500 mx-4" />
-                      </div>
-                      <div className="space-y-3">
-                        <StepIndicator stepNumber={4} title="Resultado Final" status={getStepStatus(4)} />
-                        <div className="ml-11 space-y-4">
-                          <p className="text-sm text-gray-600">Conseguiu recuperar o cliente?</p>
-                          <div className="flex gap-3">
-                            <Button
-                              variant={recuperado ? "default" : "outline"}
-                              size="lg"
-                              onClick={() => setRecuperado(true)}
-                              className="flex items-center gap-2 px-6"
-                            >
-                              <CheckCircle className="h-4 w-4" />
-                              Sim, recuperei!
-                            </Button>
-                            <Button
-                              variant={!recuperado ? "destructive" : "outline"}
-                              size="lg"
-                              onClick={() => setRecuperado(false)}
-                              className="flex items-center gap-2 px-6"
-                            >
-                              <XCircle className="h-4 w-4" />
-                              Não, não consegui
-                            </Button>
-                          </div>
+                  <div
+                    className={`space-y-4 p-4 rounded-lg border shadow-md hover:shadow-lg transition-all duration-300 ${contatoFeito && respondido && canalDeContato
+                      ? "bg-gradient-to-br from-teal-50 to-emerald-100 border-teal-200"
+                      : "bg-gradient-to-br from-slate-100 to-slate-200 border-slate-300"
+                      }`}
+                  >
+                    <h3
+                      className={`font-semibold ${contatoFeito && respondido && canalDeContato ? "text-teal-800" : "text-slate-500"}`}
+                    >
+                      4. Resultado Final
+                    </h3>
+                    {contatoFeito && respondido && canalDeContato ? (
+                      <>
+                        <p className="text-sm text-teal-700">Conseguiu recuperar o cliente?</p>
+                        <div className="space-y-2">
+                          <Button
+                            variant={recuperado ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setRecuperado(true)}
+                            className={`w-full flex items-center gap-2 transition-all duration-300 ${recuperado
+                              ? "bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 shadow-lg shadow-emerald-200 text-white"
+                              : "hover:bg-green-600"
+                              }`}
+                          >
+                            <CheckCircle className="h-4 w-4" />
+                            Sim, recuperei!
+                          </Button>
+                          <Button
+                            variant={!recuperado ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setRecuperado(false)}
+                            className={`w-full flex items-center gap-2 transition-all duration-300 ${!recuperado
+                              ? "bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 shadow-lg shadow-red-200 text-white"
+                              : "hover:bg-red-600"
+                              }`}
+                          >
+                            <XCircle className="h-4 w-4" />
+                            Não consegui
+                          </Button>
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-sm text-slate-500">Complete os passos anteriores</p>
+                    )}
+                  </div>
+                </div>
 
-                          {/* Resumo do Atendimento - RECUPERADO */}
-                          {recuperado && (
-                            <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg space-y-3">
-                              <div className="flex items-center gap-2">
-                                <CheckCircle className="h-5 w-5 text-green-600" />
-                                <h4 className="text-sm font-semibold text-green-800">Parabéns! Cliente recuperado com sucesso</h4>
-                              </div>
-                              <div className="space-y-2">
-                                <label className="text-sm font-medium text-green-700">
-                                  Selecione o tipo de recuperação:
-                                </label>
-                                <Select value={tipoDeRecuperacao} onValueChange={setTipoDeRecuperacao}>
-                                  <SelectTrigger className="w-full bg-white border-green-300">
-                                    <SelectValue placeholder="Escolha o resultado do atendimento" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {assuntoSim.map((item) => (
-                                      <SelectItem value={item.id}>
-                                        <div className="flex items-center gap-2">
-                                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                          {item.status}
-                                        </div>
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                                <div className="space-y-2">
-                                  <label className="text-sm font-medium text-green-700">
-                                    Observações adicionais:
-                                  </label>
-                                  <textarea
-                                    value={descricaoAtendente}
-                                    onChange={(e) => setDescricaoAtendente(e.target.value)}
-                                    className="w-full min-h-[100px] p-3 bg-white border border-green-300 rounded-md 
-                                  text-sm text-gray-900 placeholder-green-400
-                                  focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500
-                                  hover:border-green-400 transition-colors duration-200
-                                  resize-none shadow-sm"
-                                    placeholder="Descreva detalhes sobre a tentativa de recuperação..."
-                                    rows={4}
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Resumo do Atendimento - NÃO RECUPERADO */}
-                          {!recuperado && contatoFeito && respondido && canalDeContato && (
-                            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg space-y-3">
-                              <div className="flex items-center gap-2">
-                                <XCircle className="h-5 w-5 text-red-600" />
-                                <h4 className="text-sm font-semibold text-red-800">Cliente não foi recuperado</h4>
-                              </div>
-                              <div className="space-y-2">
-                                <label className="text-sm font-medium text-red-700">
-                                  Selecione o motivo da não recuperação:
-                                </label>
-                                <Select value={tipoDeRecuperacao} onValueChange={setTipoDeRecuperacao}>
-                                  <SelectTrigger className="w-full bg-white border-red-300">
-                                    <SelectValue placeholder="Escolha o motivo da não recuperação" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {assuntoNao.map((item) => (
-                                      <SelectItem value={item.id} key={item.id}>
-                                        <div className="flex items-center gap-2">
-                                          <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                                          {item.status}
-                                        </div>
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-
-                              {/* Textarea estilizado */}
-                              <div className="space-y-2">
-                                <label className="text-sm font-medium text-red-700">
-                                  Observações adicionais:
-                                </label>
-                                <textarea
-                                  value={descricaoAtendente}
-                                  onChange={(e) => setDescricaoAtendente(e.target.value)}
-                                  className="w-full min-h-[100px] p-3 bg-white border border-red-300 rounded-md 
-                                  text-sm text-gray-900 placeholder-red-400
-                                  focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500
-                                  hover:border-red-400 transition-colors duration-200
-                                  resize-none shadow-sm"
-                                  placeholder="Descreva detalhes sobre a tentativa de recuperação..."
-                                  rows={4}
-                                />
-                              </div>
-                            </div>
+                {/* Detailed Results Section */}
+                {((recuperado && contatoFeito && respondido && canalDeContato) ||
+                  (!recuperado && contatoFeito && respondido && canalDeContato)) && (
+                    <div className="mt-8 space-y-4">
+                      <div
+                        className={`p-4 rounded-lg border-2 ${recuperado ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}
+                      >
+                        <div className="flex items-center gap-2 mb-4">
+                          {recuperado ? (
+                            <>
+                              <CheckCircle className="h-5 w-5 text-green-600" />
+                              <h4 className="text-sm font-semibold text-green-800">
+                                Parabéns! Cliente recuperado com sucesso
+                              </h4>
+                            </>
+                          ) : (
+                            <>
+                              <XCircle className="h-5 w-5 text-red-600" />
+                              <h4 className="text-sm font-semibold text-red-800">Cliente não foi recuperado</h4>
+                            </>
                           )}
                         </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <label className={`text-sm font-medium ${recuperado ? "text-green-700" : "text-red-700"}`}>
+                              {recuperado ? "Tipo de recuperação:" : "Motivo da não recuperação:"}
+                            </label>
+                            <SelectRecuperacao
+                              options={options}
+                              value={tipoDeRecuperacao}
+                              setValue={setTipoDeRecuperacao}
+                              placeholder="Selecione o motivo"
+                              recuperado={recuperado}
+                            />
+
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className={`text-sm font-medium ${recuperado ? "text-green-700" : "text-red-700"}`}>
+                              Observações adicionais:
+                            </label>
+                            <textarea
+                              value={descricaoAtendente}
+                              onChange={(e) => setDescricaoAtendente(e.target.value)}
+                              className={`w-full min-h-[100px] p-3 bg-white border rounded-md text-sm text-gray-900 
+                            focus:outline-none focus:ring-2 hover:border-opacity-80 transition-colors duration-200 resize-none shadow-sm
+                            ${recuperado
+                                  ? "border-green-300 placeholder-green-400 focus:ring-green-500 focus:border-green-500 hover:border-green-400"
+                                  : "border-red-300 placeholder-red-400 focus:ring-red-500 focus:border-red-500 hover:border-red-400"
+                                }`}
+                              placeholder="Descreva detalhes sobre a tentativa de recuperação..."
+                              rows={4}
+                            />
+                          </div>
+                        </div>
                       </div>
-                    </>
+                    </div>
                   )}
-                </div>
               </CardContent>
             </Card>
 
@@ -628,7 +651,7 @@ export function SalesManagement() {
                 <CardTitle className="text-lg">Resumo do Status</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Contato feito:</span>
                     <span className={contatoFeito ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
@@ -665,11 +688,7 @@ export function SalesManagement() {
                     <div className="flex justify-between col-span-2 pt-2 border-t">
                       <span className="text-gray-600">Tipo de recuperação:</span>
                       <span className="font-medium text-green-600">
-                        {tipoDeRecuperacao === "venda-nova-instalacao" && "🏠 Nova Instalação"}
-                        {tipoDeRecuperacao === "venda-migracao" && "🔄 Migração de Provedor"}
-                        {tipoDeRecuperacao === "reagendamento" && "📅 Reagendamento"}
-                        {tipoDeRecuperacao === "reativacao" && "🔄 Reativação"}
-                        {tipoDeRecuperacao === "upgrade" && "⬆️ Upgrade de Plano"}
+                        {tipoDeRecuperacao.status}
                       </span>
                     </div>
                   )}
@@ -682,8 +701,8 @@ export function SalesManagement() {
               <Button
                 onClick={handleSaveClientContact}
                 size="lg"
-                disabled={respondido && !canalDeContato}
-                className="px-8 py-3 text-lg"
+                disabled={(respondido && !canalDeContato) /* || (descricaoAtendente.length === 0 || tipoDeRecuperacao?.id?.length === 0) */}
+                className="px-8 py-3 text-lg bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 shadow-lg shadow-emerald-200 text-white transition-all duration-300"
               >
                 <Save className="h-5 w-5 mr-2" />
                 Salvar Informações
@@ -783,8 +802,22 @@ export function SalesManagement() {
           </CardContent>
         </Card>
 
-        {/* Tabela de clientes aceitos */}
-        <TableClientsAcepted acceptedClients={acceptedClients} setSelectedClient={setSelectedClient} />
+        <div className="flex flex-1 h-full bg-red-900 justify-center">
+          <Card className="w-full mt-8">
+            <CardHeader className="text-center">
+              <ClipboardList className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+              <CardTitle className="text-2xl font-semibold text-gray-800">Nenhum Cliente Disponível</CardTitle>
+              <CardDescription className="text-base text-gray-600 mt-2">
+                Parece que não há novos clientes para aceitar no momento. Por favor, aguarde novas atribuições ou verifique
+                a lista de clientes existentes.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="text-center">
+              {/* You can add a button here if you want to navigate the user to another section, e.g., "Ver Clientes Existentes" */}
+              {/* <Button className="mt-4">Ver Clientes Existentes</Button> */}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   )

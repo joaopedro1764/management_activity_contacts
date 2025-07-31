@@ -1,15 +1,17 @@
 import { Route, Routes } from "react-router-dom";
 import { Login } from "./pages/Login";
 import { DefaultLayout } from "./pages/DefaultLayout";
-import { SalesManagement } from "./pages/clients";
+import { SalesManagement } from "./pages/Clients";
 import { ManagerDashboard } from "./pages/Dashboard/ManagerDashboard";
-import { Relatorios } from "./pages/Relatorios";
+import { ListCustomer } from "./pages/ListCustomers";
+
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const routes = [
-  { path: "/clientes", element: <SalesManagement /> },
+  { path: "/listMyClients", element: <ListCustomer /> },
+  { path: "/listAllClients", element: <SalesManagement /> },
   { path: "/dashboard", element: <ManagerDashboard /> },
-  { path: "/relatorios", element: <Relatorios /> },
+  
 ];
 
 export function Router() {
