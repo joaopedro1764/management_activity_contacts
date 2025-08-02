@@ -17,13 +17,14 @@ import {
     Star,
     Award
 } from "lucide-react"
-import { usePlanilha } from "@/api/planilha"
-import type { ContratoCancelado, DashboardFilters, KPIData } from "@/types/client"
+
+import type { ClienteRecuperadoAtivo , DashboardFilters, KPIData } from "@/types/client"
 import { Pagination } from "@/components/pagination"
+import { useCliente } from "@/api/api"
 
 
 export function ManagerDashboard() {
-    const { data: allClients, isLoading } = usePlanilha({ aba: "Sheet1" })
+    const { data: allClients, isLoading } = useCliente()
 
     const [filters, setFilters] = useState<DashboardFilters>({
         period: "30",
@@ -39,8 +40,8 @@ export function ManagerDashboard() {
     const totalPages = Math.ceil((allClients?.length ?? 0) / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
     const paginatedItems = [...(allClients ?? [])]
-        .filter(client => client?.score != null && !isNaN(Number(client.score)))
-        .sort((a, b) => Number(b.score) - Number(a.score))
+        .filter(client => client?.pontuacao != null && !isNaN(Number(client.pontuacao)))
+        .sort((a, b) => Number(b.pontuacao) - Number(a.pontuacao))
         .slice(startIndex, startIndex + itemsPerPage);
 
 
@@ -68,7 +69,7 @@ export function ManagerDashboard() {
     const sellers = ["João Vendedor", "Maria Vendedora", "Carlos Vendedor", "Ana Vendedora"]
 
     console.log(paginatedItems
-        ?.sort((a, b) => Number(a.score) - Number(b.score)))
+        ?.sort((a, b) => Number(a.pontuacao) - Number(b.pontuacao)))
 
     // Filtrar dados baseado nos filtros
     const filteredData = useMemo(() => {
@@ -170,7 +171,7 @@ export function ManagerDashboard() {
         return "text-destructive font-semibold"
     }
 
-    const getStatusBadge = (client: ContratoCancelado) => {
+    const getStatusBadge = (client: ClienteRecuperadoAtivo ) => {
         if (client.recovered) {
             return <Badge className="bg-success/10 text-success border-success/20">Recuperado</Badge>
         }

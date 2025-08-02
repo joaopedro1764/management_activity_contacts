@@ -1,17 +1,17 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { type ContratoCancelado } from "@/types/client";
+import { type ClienteRecuperadoAtivo  } from "@/types/client";
 import { Edit, Users } from "lucide-react";
 
 interface TableClientsAceptedProps {
-    setSelectedClient: (client: ContratoCancelado | null) => void;
-    acceptedClients: ContratoCancelado[] | undefined
+    setSelectedClient: (client: ClienteRecuperadoAtivo  | null) => void;
+    acceptedClients: ClienteRecuperadoAtivo [] | undefined
 }
 
 
 export function TableClientsAcepted({ setSelectedClient, acceptedClients }: TableClientsAceptedProps) {
 
-    function getStatusBadge(client: ContratoCancelado) {
+    function getStatusBadge(client: ClienteRecuperadoAtivo ) {
         if (client.recovered) {
             return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Recuperado</Badge>
         }

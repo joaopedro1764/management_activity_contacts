@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo} from "react"
 import {
     Search,
     Filter,
@@ -18,7 +18,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import type { ContratoCancelado } from "@/types/client"
+import { Pagination } from "@/components/pagination"
+import { useCliente } from "@/api/api"
+import { useAuth } from "@/context/AuthContext"
 
 
 
@@ -28,104 +30,86 @@ function getScoreBadgeColor(score: number) {
     return "bg-gradient-to-r from-red-500 to-rose-500 text-white"
 }
 
-function getStatusColor(status: string) {
+function getContactStatusColor(status: string) {
     switch (status) {
-        case "recuperado":
-            return "bg-gradient-to-r from-emerald-500 to-green-500 text-white"
-        case "ativo":
-            return "bg-gradient-to-r from-blue-500 to-indigo-500 text-white"
         case "em_contato":
             return "bg-gradient-to-r from-blue-400 to-cyan-500 text-white"
-        case "pendente":
-            return "bg-gradient-to-r from-amber-500 to-orange-500 text-white"
-        case "nao_recuperado":
-            return "bg-gradient-to-r from-red-500 to-rose-500 text-white"
+        case "contato_encerrado":
+            return "bg-gradient-to-r from-zinc-500 to-zinc-600 text-white"
+        case "nao_atendeu":
+            return "bg-gradient-to-r from-orange-400 to-orange-500 text-white"
+        case "recuperado":
+            return "bg-gradient-to-r from-emerald-500 to-green-500 text-white"
         default:
             return "bg-gray-500 text-white"
     }
 }
 
-function getStatusLabel(status: string) {
+function getContactStatusLabel(status: string) {
     switch (status) {
-        case "recuperado":
-            return "Recuperado"
-        case "ativo":
-            return "Ativo"
         case "em_contato":
             return "Em Contato"
-        case "pendente":
-            return "Pendente"
-        case "nao_recuperado":
-            return "Não Recuperado"
+        case "contato_encerrado":
+            return "Contato Encerrado"
+        case "nao_atendeu":
+            return "Não Atendeu"
+        case "recuperado":
+            return "Recuperado"
         default:
-            return status
+            return "Status Desconhecido"
     }
 }
 
 export function ListCustomer() {
+
+    const { user } = useAuth()
+    const { data: allClients } = useCliente()
+
+    const clientFilterByWinner = allClients?.filter((client) => {
+        return client.vendedor_responsavel === user.nome
+    })
+
+
     const [searchTerm, setSearchTerm] = useState("")
     const [statusFilter, setStatusFilter] = useState("todos")
     const [sortBy, setSortBy] = useState("score")
     const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
-    const [clientesData, setClientesData] = useState<ContratoCancelado[]>()
+    const [currentPage, setCurrentPage] = useState<number>(1);
+    const itemsPerPage = 6;
 
-    useEffect(() => {
-        const clientesSalvos = sessionStorage.getItem("clientesAtualizados");
-        if (clientesSalvos) {
-            setClientesData(JSON.parse(clientesSalvos))
+    const totalPages = Math.ceil((clientFilterByWinner?.length ?? 0) / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const paginatedItems = clientFilterByWinner?.slice(
+        startIndex,
+        startIndex + itemsPerPage
+    );
+
+    const goToFirstPage = () => setCurrentPage(1);
+    const goToLastPage = () => setCurrentPage(totalPages);
+    const goToPreviousPage = () => setCurrentPage((prev) => Math.max(prev - 1, 1));
+    const goToNextPage = () => setCurrentPage((prev) => Math.min(prev + 1, totalPages));
+    const goToPage = (page: number) => setCurrentPage(page);
+    const getVisiblePageNumbers = () => {
+        const delta = 2;
+        const left = Math.max(1, currentPage - delta);
+        const right = Math.min(totalPages, currentPage + delta);
+        const pages = [];
+
+        for (let i = left; i <= right; i++) {
+            pages.push(i);
         }
-    }, []);
 
-    console.log(clientesData)
+        return pages;
+    };
 
-    // Filtrar e ordenar dados
-    const filteredAndSortedData = useMemo(() => {
-        const filtered = clientesData?.filter((cliente) => {
-            const matchesSearch =
-                cliente.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                cliente.id_cliente.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                cliente.email.toLowerCase().includes(searchTerm.toLowerCase())
-
-            const matchesStatus = statusFilter === "todos" || cliente.status === statusFilter
-
-            return matchesSearch && matchesStatus
-        })
-
-        // Ordenar
-        filtered?.sort((a, b) => {
-            const aValue = a[sortBy as keyof typeof a]
-            const bValue = b[sortBy as keyof typeof b]
-
-            // Coloca valores indefinidos no final da ordenação
-            if (aValue === undefined) return 1
-            if (bValue === undefined) return -1
-
-            let valA = aValue
-            let valB = bValue
-
-            if (typeof valA === "string" && typeof valB === "string") {
-                valA = valA.toLowerCase()
-                valB = valB.toLowerCase()
-            }
-
-            if (sortOrder === "asc") {
-                return valA < valB ? -1 : valA > valB ? 1 : 0
-            } else {
-                return valA > valB ? -1 : valA < valB ? 1 : 0
-            }
-        })
-
-
-        return filtered
-    }, [searchTerm, statusFilter, sortBy, sortOrder])
 
     // Calcular métricas
     const metrics = useMemo(() => {
-        if (clientesData) {
-            const total = clientesData.length
-            const recuperados = clientesData.filter((c) => c.contactStatus === "recuperado").length
-            const emContato = clientesData.filter((c) => c.contactStatus === "em_contato").length
-            const scoreAlto = clientesData.filter((c) => c.score >= 80).length
+        if (clientFilterByWinner) {
+            const total = clientFilterByWinner.length
+            const recuperados = clientFilterByWinner?.filter((c) => c.etapa_contato === "recuperado").length
+            const emContato = clientFilterByWinner?.filter((c) => c.etapa_contato === "em_contato").length
+            const scoreAlto = clientFilterByWinner?.filter((c) => c.pontuacao >= 80).length
             const taxaRecuperacao = total > 0 ? Math.round((recuperados / total) * 100) : 0
 
             return {
@@ -138,15 +122,6 @@ export function ListCustomer() {
         }
     }, [])
 
-    const handleSort = (field: string) => {
-        if (sortBy === field) {
-            setSortOrder(sortOrder === "asc" ? "desc" : "asc")
-        } else {
-            setSortBy(field)
-            setSortOrder("desc")
-        }
-    }
-
     const handleViewClient = (clienteId: string) => {
         console.log("Ver detalhes do cliente:", clienteId)
         // Implementar navegação para detalhes do cliente
@@ -157,7 +132,7 @@ export function ListCustomer() {
         // Implementar ação de contato
     }
 
-    console.log(clientesData)
+    console.log(paginatedItems)
 
     return (
         <div className="min-h-screen w-full bg-gradient-to-br from-slate-50 to-blue-50">
@@ -293,20 +268,20 @@ export function ListCustomer() {
 
                 {/* Filtros e Tabela */}
                 <Card className="border-0 shadow-xl bg-gradient-to-br from-white to-slate-50">
-                    <CardHeader className="bg-gradient-to-r from-slate-50 to-blue-50 border-b border-slate-100">
+                    <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-slate-800">
                             <Filter className="h-5 w-5 text-blue-600" />
                             Lista de Clientes
                         </CardTitle>
                     </CardHeader>
-                    <CardContent className="p-6">
+                    <CardContent className="">
                         {/* Filtros */}
                         <div className="flex flex-col md:flex-row gap-4 mb-6">
                             <div className="flex-1">
                                 <div className="relative">
                                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
                                     <Input
-                                        placeholder="Buscar por nome, ID ou email..."
+                                        placeholder="Buscar por nome ou ID"
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
                                         className="pl-10 bg-white border-slate-200 focus:border-blue-400 focus:ring-blue-400"
@@ -351,22 +326,22 @@ export function ListCustomer() {
                         </div>
 
                         {/* Tabela */}
-                        <div className="rounded-lg border border-slate-200 overflow-hidden">
+                        <div className="rounded-lg border border-slate-200 overflow-hidden p-2">
                             <Table>
                                 <TableHeader>
                                     <TableRow className="bg-gradient-to-r from-slate-50 to-blue-50">
                                         <TableHead
                                             className="cursor-pointer hover:bg-slate-100 transition-colors"
-                                            onClick={() => handleSort("id")}
+
                                         >
                                             <div className="flex items-center gap-2">
-                                                ID
+                                                ID CLIENTE
                                                 <ArrowUpDown className="h-4 w-4" />
                                             </div>
                                         </TableHead>
                                         <TableHead
                                             className="cursor-pointer hover:bg-slate-100 transition-colors"
-                                            onClick={() => handleSort("nome")}
+
                                         >
                                             <div className="flex items-center gap-2">
                                                 Cliente
@@ -375,19 +350,20 @@ export function ListCustomer() {
                                         </TableHead>
                                         <TableHead
                                             className="cursor-pointer hover:bg-slate-100 transition-colors"
-                                            onClick={() => handleSort("score")}
+
                                         >
                                             <div className="flex items-center gap-2">
                                                 Score
                                                 <ArrowUpDown className="h-4 w-4" />
                                             </div>
                                         </TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead>Canal Preferido</TableHead>
+                                        <TableHead>Motivo cancelamento</TableHead>
+                                        <TableHead>Status Contato</TableHead>
+                                        <TableHead>Melhor Contato</TableHead>
 
                                         <TableHead
                                             className="cursor-pointer hover:bg-slate-100 transition-colors"
-                                            onClick={() => handleSort("data_contato")}
+
                                         >
                                             <div className="flex items-center gap-2">
                                                 Último Contato
@@ -398,37 +374,45 @@ export function ListCustomer() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {filteredAndSortedData?.map((cliente) => (
+                                    {paginatedItems?.map((cliente) => (
                                         <TableRow key={cliente.id_cliente} className="hover:bg-slate-50 transition-colors">
-                                            <TableCell className="font-medium text-slate-700">#{cliente.id_cliente}</TableCell>
+                                            <TableCell className="font-medium text-slate-700">{cliente.id_cliente}</TableCell>
                                             <TableCell>
-                                                <div className="space-y-1">
-                                                    <div className="font-medium text-slate-800">{cliente.nome}</div>
-                                                    <div className="text-sm text-slate-500">{cliente.email}</div>
-                                                    <div className="text-sm text-slate-500">{cliente.telefone}</div>
+                                                <div className="space-y-1 flex flex-col">
+                                                    <span className="font-medium text-slate-800">{cliente.razao}</span>
+                                                    <span className="text-sm text-blue-500 font-medium flex gap-1 items-center"> <Phone className="w-4 h-4" />{cliente.contato_1}</span>
+                                                    {cliente.contato_2 && (
+                                                        <span className="text-sm text-blue-500 font-medium flex gap-1 items-center"> <Phone className="w-4 h-4" />{cliente.contato_2}</span>
+                                                    )}
+                                                    {cliente.contato_3 && (
+                                                        <span className="text-sm text-blue-500 font-medium flex gap-1 items-center"> <Phone className="w-4 h-4" />{cliente.contato_1}</span>
+                                                    )}
                                                 </div>
                                             </TableCell>
                                             <TableCell>
-                                                <Badge className={`${getScoreBadgeColor(cliente.score)} font-bold`}>{cliente.score}</Badge>
+                                                <Badge className={`${getScoreBadgeColor(cliente.pontuacao)} font-bold`}>{cliente.pontuacao}</Badge>
                                             </TableCell>
                                             <TableCell>
-                                                <Badge className={getStatusColor(cliente.status)}>{getStatusLabel(cliente.status)}</Badge>
+                                                {cliente.motivo_cancelamento}
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge className={getContactStatusColor(cliente.etapa_contato)}>{getContactStatusLabel(cliente.etapa_contato)}</Badge>
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex items-center gap-2">
-                                                    {cliente.contactChannel === "whatsapp" ? (
+                                                    {cliente.contato_1 === "whatsapp" ? (
                                                         <MessageCircle className="h-4 w-4 text-green-600" />
                                                     ) : (
                                                         <>
                                                             <Phone className="h-4 w-4 text-blue-600" />
                                                         </>
                                                     )}
-                                                    <span className="text-sm text-slate-600 capitalize">{cliente.contactChannel}</span>
+                                                    <span className="text-sm text-slate-600 capitalize">{cliente.contato_1 || "Telefone"}</span>
                                                 </div>
                                             </TableCell>
 
                                             <TableCell className="text-slate-600">
-                                                {cliente.data_contato_aceitacao}
+                                                {cliente.data_cancelamento}
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <DropdownMenu>
@@ -443,7 +427,7 @@ export function ListCustomer() {
                                                             Ver Detalhes
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem onClick={() => handleContactClient(cliente)}>
-                                                            {cliente.contactChannel === "whatsapp" ? (
+                                                            {cliente.canal_de_contato === "whatsapp" ? (
                                                                 <MessageCircle className="mr-2 h-4 w-4" />
                                                             ) : (
                                                                 <Phone className="mr-2 h-4 w-4" />
@@ -459,10 +443,19 @@ export function ListCustomer() {
                             </Table>
                         </div>
 
-                        {/* Resultado da busca */}
-                        <div className="mt-4 text-sm text-slate-600">
-                            Mostrando {filteredAndSortedData?.length} de {clientesData?.length} clientes
-                        </div>
+                        <Pagination
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            itemsPerPage={itemsPerPage}
+                            totalItems={clientFilterByWinner?.length ?? 0}
+                            startIndex={startIndex}
+                            getVisiblePageNumbers={getVisiblePageNumbers}
+                            goToFirstPage={goToFirstPage}
+                            goToPreviousPage={goToPreviousPage}
+                            goToPage={goToPage}
+                            goToNextPage={goToNextPage}
+                            goToLastPage={goToLastPage}
+                        />
                     </CardContent>
                 </Card>
             </div>

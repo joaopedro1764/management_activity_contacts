@@ -35,9 +35,9 @@ export function SelectRecuperacao({ options, value, setValue, placeholder = "Sel
             <SelectContent>
                 {options.map((item) => (
                    <div className="flex items-center">
-                   <div className={`w-2 h-2 ${recuperado? "bg-green-500": "bg-red-500"} rounded-full`}/>
+                  
                     <SelectItem  key={item.id} value={item.id}>
-                        {item.status}
+                      <div className={`w-2 h-2 ${recuperado? "bg-green-500": "bg-red-500"} rounded-full`}/>   {item.status}
                     </SelectItem>
                     </div>
                 ))}

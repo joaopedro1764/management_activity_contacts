@@ -1,13 +1,14 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Phone, Mail, Building, MessageCircle, Check, X, Users, ArrowLeft, CheckCircle, XCircle, Save, ArrowRight, AlertCircle, PhoneOff, AlertTriangle, Contact, ClipboardList } from "lucide-react"
-import { usePlanilha } from "@/api/planilha"
-import type { ContratoCancelado, StepIndicatorProps } from "@/types/client"
+import { Phone, Mail, Building, MessageCircle, Users, ArrowLeft, CheckCircle, XCircle, Save, ArrowRight, AlertCircle, PhoneOff, AlertTriangle, Contact, ClipboardList, ArrowBigLeft, CircleCheck, ArrowBigRight } from "lucide-react"
+import type { ClienteRecuperadoAtivo, StepIndicatorProps } from "@/types/client"
 import { assuntoNao, assuntoSim } from "@/lib/assuntos"
 import { format } from "date-fns"
 import { SelectRecuperacao } from "@/components/ui/SelectRecuperacao"
 import { toast } from "sonner"
+import { updateClientFn, useCliente } from "@/api/api"
+import { useAuth } from "@/context/AuthContext"
 export const sellers = ["João Vendedor", "Maria Vendedora", "Carlos Vendedor", "Ana Vendedora"]
 
 export const getScoreColor = (score: number) => {
@@ -22,8 +23,7 @@ interface TipoRecuperacao {
 }
 
 export function SalesManagement() {
-
-  const [selectedClient, setSelectedClient] = useState<ContratoCancelado | null>()
+  const [selectedClient, setSelectedClient] = useState<ClienteRecuperadoAtivo | null>()
   const [contatoFeito, setContatoFeito] = useState(false)
   const [respondido, setRespondido] = useState(false)
   const [recuperado, setRecuperado] = useState(false)
@@ -32,39 +32,40 @@ export function SalesManagement() {
     id: "",
     status: ""
   });
-
   const [deveFecharContato, setDeveFecharContato] = useState(false)
   const [descricaoAtendente, setDescricaoAtendente] = useState("")
-  const { data: cancelamentos } = usePlanilha({ aba: "Sheet1" })
-  const [clients, setClients] = useState<ContratoCancelado[]>()
+  const { data: cancelamentos } = useCliente()
+  const [clients, setClients] = useState<ClienteRecuperadoAtivo[]>()
+  const [currentIndex, setCurrentIndex] = useState<number>(0)
+  const { user } = useAuth()
+  const filteredClients: ClienteRecuperadoAtivo[] = useMemo(() => {
+    return clients?.filter(
+      client =>
+        client.status_contrato === "I" &&
+        (!client.vendedor_responsavel || client.vendedor_responsavel.trim() === "")
+    ) ?? []
+  }, [clients])
+  const nextClient = filteredClients[currentIndex]
+  const options = recuperado ? assuntoSim : assuntoNao;
 
+  function handleNextClient() {
+    if (currentIndex < filteredClients.length - 1) {
+      setCurrentIndex(prev => prev + 1)
+    }
+  }
 
-  /* 
-    const acceptedClients = clients?.filter(client =>
-      client.status === "assigned" && client.assignedTo === sellers[0]
-    ) */
+  function handlePreviousClient() {
+    if (currentIndex > 0) {
+      setCurrentIndex(prev => prev - 1)
+    }
+  }
 
   useEffect(() => {
     setClients(cancelamentos?.sort(
-      (a, b) => Number(b.score) - Number(a.score)
+      (a, b) => Number(b.pontuacao) - Number(a.pontuacao)
     ))
   }, [cancelamentos])
 
-  const nextClient = clients?.find(client =>
-    client.status === "available" ||
-    (
-      client.status === "assigned" &&
-      client.assignedTo === sellers[0] &&
-      !client.contactMade &&
-      (!client.contactStatus || client.contactStatus === "nao_atendeu")
-    )
-  );
-
-
-
-  const options = recuperado ? assuntoSim : assuntoNao;
-
-  // Quando a lista de opções mudar, resetar o valor selecionado se não existir mais
   useEffect(() => {
     const stillExists = options.some(opt => opt.id === tipoDeRecuperacao.id);
     if (!stillExists) {
@@ -72,98 +73,76 @@ export function SalesManagement() {
     }
   }, [options]);
 
-  const handleAcceptClient = () => {
-
+  async function handleAcceptClient() {
     if (nextClient) {
-      const updatedClient: ContratoCancelado = {
+      const updatedClient: ClienteRecuperadoAtivo = {
         ...nextClient,
-        contactStatus: "em_contato" as const,
-        assignedTo: sellers[0],
-        data_contato_aceitacao: format(Date.now(), "dd/MM/yyyy")
+        etapa_contato: "em_contato" as const,
+        canal_de_contato: "telefone",
+        vendedor_responsavel: user.nome,
+        data_contato_aceito: format(Date.now(), "dd/MM/yyyy")
       }
-      setClients(clients?.map(client =>
-        client.id_cliente === nextClient.id_cliente ? updatedClient : client
-      ))
+      await updateClientFn(updatedClient)
       setSelectedClient(updatedClient)
-      // Reset form states
-      setContatoFeito(false)
-      setRespondido(false)
-      setRecuperado(false)
-      setCanalDeContato("")
-      setTipoDeRecuperacao({ id: "", status: "" })
-      setDeveFecharContato(false)
       toast.success('Cliente aceito com sucesso, cheque sua lista')
     }
   }
 
-
-  const handleSkipClient = () => {
-    if (nextClient) {
-      // Remove o cliente da lista temporariamente (simulando pular)
-      setClients(clients?.filter(client => client.id_cliente !== nextClient.id_cliente))
+  function determinarStatusFinal(): "recuperado" | "contato_encerrado" | "nao_atendeu" | "em_contato" {
+    if (recuperado) {
+      return "recuperado";
     }
+
+    if (!contatoFeito) {
+      return "em_contato";
+    }
+
+    if (contatoFeito && deveFecharContato) {
+      return "contato_encerrado";
+    }
+
+    if (contatoFeito && !respondido) {
+      return "nao_atendeu";
+    }
+
+    if (contatoFeito && respondido) {
+      return "contato_encerrado";
+    }
+    return "em_contato";
   }
 
-  const handleSaveClientContact = () => {
+  function isTratado(status: string): "Sim" | "Não" {
+    if (["contato_encerrado", "recuperado"].includes(status)) {
+      return "Sim";
+    }
+    return "Não";
+  }
+
+  async function handleSaveClientContact() {
+
     if (!selectedClient) return;
 
-    const dataFinal = format(Date.now(), "dd/MM/yyyy");
-    const updateClient = (overrides: Partial<ContratoCancelado>) => {
-      const updatedClient: ContratoCancelado = {
-        ...selectedClient,
-        status: "assigned",
-        contactMade: contatoFeito,
-        recovered: recuperado,
-        assignedTo: sellers[0],
-        contactChannel: respondido ? canalDeContato as "whatsapp" | "telefone" : undefined,
-        ...overrides,
-      };
+    const etapaContato = determinarStatusFinal()
 
-      // Atualiza o estado da UI
-      const novosClientes = clients?.map(client =>
-        client.id_cliente === updatedClient.id_cliente ? updatedClient : client
-      );
-      setClients(novosClientes);
-
-      // --- Atualiza apenas os clientes alterados na sessionStorage ---
-      const sessionKey = "clientesAtualizados";
-
-      const salvos = sessionStorage.getItem(sessionKey);
-      const atualizados: ContratoCancelado[] = salvos ? JSON.parse(salvos) : [];
-
-      const atualizadosSemEsse = atualizados.filter(
-        c => c.id_cliente !== updatedClient.id_cliente
-      );
-
-      const novosAtualizados = [...atualizadosSemEsse, updatedClient];
-
-      sessionStorage.setItem(sessionKey, JSON.stringify(novosAtualizados));
+    const updatedClient: ClienteRecuperadoAtivo = {
+      ...selectedClient,
+      etapa_contato: etapaContato,
+      tratado: isTratado(etapaContato),
+      vendedor_responsavel: user.nome,
+      canal_de_contato: canalDeContato ?? "",
+      descricao_atendente: tipoDeRecuperacao.id ?? "" + descricaoAtendente ?? "",
+      /*  id_diagnostico_atendimento:  ?? "",
+       data_contato_final: etapaContato === "contato_encerrado" || etapaContato === "recuperado" ? String(format(Date.now(), "dd/MM/yyyy")) : "" */
     };
 
-    if (recuperado) {
-      updateClient({
-        contactStatus: "recuperado",
-        idDiagnostico: tipoDeRecuperacao.id,
-        descricao_atendente: descricaoAtendente,
-        data_contato_final: dataFinal
-      });
-    } else if (contatoFeito && !respondido && deveFecharContato) {
-      updateClient({
-        contactStatus: "contato_encerrado",
-        idDiagnostico: tipoDeRecuperacao.id,
-        descricao_atendente: descricaoAtendente,
-        data_contato_final: dataFinal
-      });
-    } else if (contatoFeito && !respondido) {
-      updateClient({ contactStatus: "nao_atendeu" });
-    } else if (!contatoFeito && !respondido && !recuperado) {
-      updateClient({ contactStatus: "em_contato" });
+    try {
+      await updateClientFn(updatedClient)
+      toast.success("Cliente atualizado com sucesso, cheque sua lista!")
+      setSelectedClient(null)
+    } catch (error) {
+      toast.error("Ocorreu um erro, tente novamente!")
     }
-    toast.success('Atualização salva com sucesso, cheque sua lista')
-    setDescricaoAtendente("");
-    setSelectedClient(null);
   };
-
 
   const handleBackToDashboard = () => {
     setSelectedClient(null)
@@ -236,6 +215,7 @@ export function SalesManagement() {
     );
   };
 
+
   if (selectedClient) {
     return (
       <div className="min-h-screen w-full bg-gray-100">
@@ -271,13 +251,13 @@ export function SalesManagement() {
                 <div className="space-y-4">
                   <div>
                     <h3 className="text-2xl font-semibold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
-                      {selectedClient.nome}
+                      {selectedClient.razao}
                     </h3>
                   </div>
                   <div className="space-y-3">
                     <div className="flex items-center gap-3 text-sm">
                       <Phone className="h-4 w-4 text-emerald-600" />
-                      <span className="font-medium text-slate-700">{selectedClient.telefone}</span>
+                      <span className="font-medium text-slate-700">{selectedClient.contato_1}</span>
                     </div>
                     <div className="flex items-center gap-3 text-sm">
                       <Mail className="h-4 w-4 text-blue-600" />
@@ -285,14 +265,14 @@ export function SalesManagement() {
                     </div>
                     <div className="flex items-center gap-3 text-sm">
                       <Building className="h-4 w-4 text-purple-600" />
-                      <span className="text-slate-700">Na base há {selectedClient.meses_base} meses</span>
+                      <span className="text-slate-700">Na base há {selectedClient.meses_ativo} meses</span>
                     </div>
                   </div>
                 </div>
                 <div className="space-y-4">
                   <div>
                     <span className="text-sm font-medium text-slate-700">Score Interno:</span>
-                    <span className={`ml-2 text-xl ${getScoreColor(selectedClient.score)}`}>{selectedClient.score}</span>
+                    <span className={`ml-2 text-xl ${getScoreColor(selectedClient.pontuacao)}`}>{selectedClient.pontuacao}</span>
                   </div>
                   <div>
                     <span className="text-sm font-medium text-slate-700">Motivo do Cancelamento:</span>
@@ -743,21 +723,46 @@ export function SalesManagement() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-3">
                     <div>
-                      <h3 className="text-xl font-semibold text-gray-900">{nextClient.nome}</h3>
+                      <h3 className="text-xl font-semibold text-gray-900">{nextClient.razao}</h3>
                     </div>
 
                     <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-sm">
-                        <Phone className="h-4 w-4 text-gray-500" />
-                        <span>{nextClient.telefone}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Mail className="h-4 w-4 text-gray-500" />
-                        <span>{nextClient.email}</span>
-                      </div>
+                      {
+                        nextClient.contato_1 && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <Phone className="h-4 w-4 text-gray-500" />
+                            <span>Telefone: {nextClient.contato_1}</span>
+                          </div>
+                        )
+                      }
+                      {
+                        nextClient.contato_2 && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <Phone className="h-4 w-4 text-gray-500" />
+                            <span>Telefone: {nextClient.contato_2}</span>
+                          </div>
+                        )
+                      }
+                      {
+                        nextClient.contato_3 && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <Phone className="h-4 w-4 text-gray-500" />
+                            <span>Telefone: {nextClient.contato_3}</span>
+                          </div>
+                        )
+                      }
+                      {
+                        nextClient.email && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <Mail className="h-4 w-4 text-gray-500" />
+                            <span>{nextClient.email}</span>
+                          </div>
+                        )
+                      }
+
                       <div className="flex items-center gap-2 text-sm">
                         <Building className="h-4 w-4 text-gray-500" />
-                        <span>Na base há {nextClient.meses_base} meses</span>
+                        <span>Na base há {nextClient.meses_ativo} meses</span>
                       </div>
                     </div>
                   </div>
@@ -765,8 +770,8 @@ export function SalesManagement() {
                   <div className="space-y-3">
                     <div>
                       <span className="text-sm font-medium text-gray-700">Score Interno:</span>
-                      <span className={`ml-2 text-lg ${getScoreColor(nextClient.score)}`}>
-                        {nextClient.score}
+                      <span className={`ml-2 text-lg ${getScoreColor(nextClient.pontuacao)}`}>
+                        {nextClient.pontuacao}
                       </span>
                     </div>
 
@@ -782,15 +787,23 @@ export function SalesManagement() {
                   </div>
                 </div>
 
-                <div className="flex gap-3 pt-4 border-t">
-                  <Button onClick={handleAcceptClient} className="flex items-center gap-2">
-                    <Check className="h-4 w-4" />
-                    Aceitar Cliente
-                  </Button>
-                  <Button variant="outline" onClick={handleSkipClient} className="flex items-center gap-2">
-                    <X className="h-4 w-4" />
-                    Pular Cliente
-                  </Button>
+                <div className="w-full flex justify-between gap-3 pt-4 border-t">
+                  <div className="flex gap-2">
+                    <Button onClick={handlePreviousClient} className="flex items-center gap-2 bg-red-500 hover:bg-red-700">
+                      <ArrowBigLeft className="h-4 w-4" />
+                      Voltar
+                    </Button>
+                    <Button variant="outline" onClick={handleNextClient} className="flex items-center gap-2">
+                      <ArrowBigRight className="h-4 w-4" />
+                      Pular Cliente
+                    </Button>
+                  </div>
+                  <div>
+                    <Button onClick={handleAcceptClient} className="flex items-center gap-2 float-end bg-green-500 hover:bg-green-400">
+                      <CircleCheck className="h-8 w-8" />
+                      Aceitar Cliente
+                    </Button>
+                  </div>
                 </div>
               </div>
             ) : (
@@ -802,20 +815,17 @@ export function SalesManagement() {
           </CardContent>
         </Card>
 
-        <div className="flex flex-1 h-full bg-red-900 justify-center">
-          <Card className="w-full mt-8">
+        <div className="flex flex-1 h-full justify-center p-4">
+          <Card className="w-full max-w-2xl mt-8">
             <CardHeader className="text-center">
-              <ClipboardList className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-              <CardTitle className="text-2xl font-semibold text-gray-800">Nenhum Cliente Disponível</CardTitle>
-              <CardDescription className="text-base text-gray-600 mt-2">
-                Parece que não há novos clientes para aceitar no momento. Por favor, aguarde novas atribuições ou verifique
-                a lista de clientes existentes.
+              <ClipboardList className="mx-auto h-12 w-12 text-blue-400 mb-4" />
+              <CardTitle className="text-2xl font-semibold text-gray-800">Comece a Gerenciar Seus Clientes!</CardTitle>
+              <CardDescription className="text-xl text-gray-700 mt-2">
+                Parece que você não tem nenhum cliente atribuído no momento. Clique no botão <span className="text-blue-500 font-medium">aceitar cliente</span> para aceitar o próximo
+                cliente disponível e começar a gerencia-lo.
               </CardDescription>
             </CardHeader>
-            <CardContent className="text-center">
-              {/* You can add a button here if you want to navigate the user to another section, e.g., "Ver Clientes Existentes" */}
-              {/* <Button className="mt-4">Ver Clientes Existentes</Button> */}
-            </CardContent>
+
           </Card>
         </div>
       </div>

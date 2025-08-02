@@ -1,29 +1,58 @@
-import { Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 import { Login } from "./pages/Login";
 import { DefaultLayout } from "./pages/DefaultLayout";
 import { SalesManagement } from "./pages/Clients";
 import { ManagerDashboard } from "./pages/Dashboard/ManagerDashboard";
 import { ListCustomer } from "./pages/ListCustomers";
+import { AuthProvider, useAuth } from "./context/AuthContext";
+import type { JSX } from "react";
 
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const routes = [
-  { path: "/listMyClients", element: <ListCustomer /> },
-  { path: "/listAllClients", element: <SalesManagement /> },
-  { path: "/dashboard", element: <ManagerDashboard /> },
-  
+  { path: "/meusClientes", element: <ListCustomer /> },
+  { path: "/listaClientes", element: <SalesManagement /> },
+  { path: "/dashboard", element: <ManagerDashboard />, requireAdmin: true },
+
 ];
+
+
+interface PrivateRouteProps {
+  children: JSX.Element;
+}
+
+export function PrivateRoute({ children }: PrivateRouteProps) {
+  const { isAuthenticated } = useAuth();
+  if (!isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
+  return children;
+}
+
+export function AdminRoute({ children }: { children: JSX.Element }) {
+  const { user, isAuthenticated } = useAuth();
+
+  if (!isAuthenticated || user?.tipo !== "admin") {
+    return <Navigate to="/listaClientes" replace />;
+  }
+
+  return children;
+}
 
 export function Router() {
   return (
-    <Routes>
-      <Route path="/" element={<Login />} />
-      <Route element={<DefaultLayout />}>
-        {routes.map((route) => (
-          <Route key={route.path} path={route.path} element={route.element} />
-        ))}
-      </Route>
-      <Route path="*" element={<div>404</div>} />
-    </Routes>
+    <AuthProvider>
+      <Routes>
+        <Route path="/" element={<Login />} />
+        <Route element={<DefaultLayout />}>
+          {routes.map((route) => (
+            <Route key={route.path} path={route.path} element={
+              <PrivateRoute>{route.element}</PrivateRoute>
+            } />
+          ))}
+        </Route>
+        <Route path="*" element={<div>404</div>} />
+      </Routes>
+    </AuthProvider>
   );
 }

@@ -4,32 +4,34 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Eye, EyeOff, Lock, Mail, Shield } from "lucide-react";
-import { useNavigate } from "react-router";
-
-export function Login  ()  {
+import { useForm } from "react-hook-form"
+import type { LoginProps } from "@/types/client";
+import { useAuth } from "@/context/AuthContext";
+export function Login() {
   const [showPassword, setShowPassword] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
 
-  const navigate = useNavigate()
+  const { register, handleSubmit } = useForm<LoginProps>()
 
-  const handleSubmit = () => {
-    navigate("/clientes")
-  };
 
+
+  const { login } = useAuth()
+
+  async function handleLogin({ email, senha }: LoginProps) {
+    await login({ email, senha })
+  }
   return (
     <div className="min-h-screen bg-gradient-background relative overflow-hidden">
       {/* Background decorative elements */}
       <div className="absolute inset-0 bg-gradient-mesh"></div>
-      
+
       {/* Floating geometric shapes */}
       <div className="absolute top-20 left-10 w-20 h-20 bg-blue-100 rounded-full opacity-50 animate-pulse"></div>
       <div className="absolute bottom-32 right-16 w-16 h-16 bg-blue-50 rounded-lg rotate-45 opacity-40"></div>
       <div className="absolute top-1/2 left-1/4 w-12 h-12 bg-primary opacity-20 rounded-full"></div>
       <div className="absolute bottom-1/4 left-1/2 w-8 h-8 bg-blue-500 opacity-30 rounded-full animate-pulse delay-1000"></div>
-      
+
       {/* Grid pattern overlay */}
-      <div 
+      <div
         className="absolute inset-0 opacity-5"
         style={{
           backgroundImage: `
@@ -65,7 +67,7 @@ export function Login  ()  {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form onSubmit={handleSubmit(handleLogin)} className="space-y-6">
                 {/* Email Field */}
                 <div className="space-y-2">
                   <Label htmlFor="email" className="text-sm font-medium">
@@ -77,8 +79,7 @@ export function Login  ()  {
                       id="email"
                       type="email"
                       placeholder="seu@email.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      {...register("email")}
                       className="pl-10 h-12 focus:ring-primary border-border"
                       required
                     />
@@ -93,11 +94,10 @@ export function Login  ()  {
                   <div className="relative">
                     <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
+                      {...register("senha")}
                       id="password"
                       type={showPassword ? "text" : "password"}
                       placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
                       className="pl-10 pr-12 h-12 focus:ring-primary border-border"
                       required
                     />
@@ -117,16 +117,6 @@ export function Login  ()  {
 
                 {/* Remember Me & Forgot Password */}
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="remember"
-                      className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
-                    />
-                    <Label htmlFor="remember" className="text-sm text-muted-foreground">
-                      Lembrar de mim
-                    </Label>
-                  </div>
                   <a
                     href="#"
                     className="text-sm text-primary hover:text-primary-hover transition-colors"
