@@ -38,7 +38,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser(decoded);
         setIsAuthenticated(true);
       } catch (error) {
-        console.error("Erro ao decodificar token:", error);
+        toast.error("Erro ao decodificar token:");
         logout();
       }
     }

@@ -6,7 +6,7 @@ import {
   ChevronRight,
   X,
 } from "lucide-react"
-import { Link, useLocation, useNavigate } from "react-router-dom"
+import { Link, useLocation } from "react-router-dom"
 import { useState, useEffect } from "react"
 import { useAuth } from "@/context/AuthContext"
 
@@ -34,16 +34,16 @@ interface SidebarProps {
 
 const menuItems = [
   {
-    name: "Meus clientes",
+    name: "Lista de Clientes",
     link: "/listaClientes",
     icon: Users,
-    description: "Visualização meus clientes",
+    description: "Visualização lead de clientes",
   },
   {
-    name: "Lista de clientes",
+    name: "Meus Clientes",
     link: "/meusClientes",
     icon: Users,
-    description: "Visualização lead clientes",
+    description: "Visualização meus clientes",
   },
   {
     name: "Dashboard",
@@ -61,7 +61,6 @@ export function Sidebar({
 }: SidebarProps) {
   const location = useLocation()
   const isMobile = useIsMobile(1024)
-  const navigate = useNavigate()
 
   const isActiveItem = (itemPath: string) => location.pathname === itemPath
 

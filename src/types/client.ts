@@ -1,3 +1,4 @@
+import { z } from "zod";
 export interface ClienteRecuperadoAtivo {
   id_cliente: string
   id_contrato: string
@@ -84,3 +85,8 @@ export interface Status_Contato {
     nao_atendeu: boolean,
     recuperado: boolean
 }
+
+export const ClientSearchProps = z.object({
+  idClientOrNameClient: z.string().optional(),
+  statusFilter: z.string().optional()
+});
