@@ -21,7 +21,7 @@ export function TableClientsAcepted({ setSelectedClient, acceptedClients }: Tabl
         if (client.contactStatus === "nao_atendeu") {
             return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">Não Atendeu</Badge>
         }
-        if (client.contactStatus === "contato_encerrado") {
+        if (client.contactStatus === "") {
             return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Contato Encerrado</Badge>
         }
         return <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">Pendente</Badge>
@@ -86,7 +86,7 @@ export function TableClientsAcepted({ setSelectedClient, acceptedClients }: Tabl
                                         <td className="p-3">
                                             <button
                                             
-                                                disabled={client.recovered || client.contactStatus === "contato_encerrado"}
+                                                disabled={client.recovered || client.contactStatus === "sem_reposta"}
                                                 className="disabled:cursor-not-allowed disabled:opacity-50 hover:text-blue-600"
                                                 onClick={() => setSelectedClient(client)}
                                             >

@@ -28,7 +28,7 @@ import { Pagination } from "@/components/pagination";
 import { useCliente } from "@/api/api";
 import { useAuth } from "@/context/AuthContext";
 import { format } from "date-fns";
-import { ClientListFilter } from "./list-filter";
+import { ClientListFilter } from "./FilterListBySeller";
 import { useNavigate, useSearchParams } from "react-router";
 
 function getScoreBadgeColor(score: number) {
@@ -43,12 +43,14 @@ function getContactStatusColor(status: string) {
   switch (status) {
     case "em_contato":
       return "bg-yellow-500 text-white border border-yellow-200";
-    case "contato_encerrado":
-      return "bg-red-500 text-white border border-red-200";
+    case "sem_resposta":
+      return "bg-gray-500 text-white border border-gray-200";
     case "nao_atendeu":
       return "bg-orange-500 text-white border border-orange-200";
     case "recuperado":
       return "bg-green-500 text-white border border-green-200";
+      case "nao_recuperado":
+      return "bg-red-500 text-white border border-red-200";
     default:
       return "bg-gray-500 text-white";
   }
@@ -58,12 +60,14 @@ function getContactStatusLabel(status: string) {
   switch (status) {
     case "em_contato":
       return "Em Contato";
-    case "contato_encerrado":
-      return "Contato Encerrado";
+    case "sem_resposta":
+      return "Sem Resposta";
     case "nao_atendeu":
       return "Não Atendeu";
     case "recuperado":
       return "Recuperado";
+    case "nao_recuperado":
+      return "Não Recuperado";
     default:
       return "Status Desconhecido";
   }
@@ -78,6 +82,8 @@ export function ListCustomer() {
   const clientFilterByWinner = allClients?.filter((client) => {
     return client.vendedor_responsavel === user.nome;
   });
+
+  console.log(clientFilterByWinner);
 
   const filters = {
     statusFilter: searchParams.get("statusFilter")?.toLowerCase().trim(),
@@ -145,8 +151,8 @@ export function ListCustomer() {
       const em_contato = clientFilterByWinner?.filter(
         (c) => c.etapa_contato === "em_contato"
       ).length;
-      const contato_encerrado = clientFilterByWinner?.filter(
-        (c) => c.etapa_contato === "contato_encerrado"
+      const sem_reposta = clientFilterByWinner?.filter(
+        (c) => c.etapa_contato === "sem_resposta"
       ).length;
       const taxaRecuperacao =
         total > 0 ? Math.round((recuperados / total) * 100) : 0;
@@ -155,7 +161,7 @@ export function ListCustomer() {
         total,
         recuperados,
         em_contato,
-        contato_encerrado,
+        sem_reposta,
         taxaRecuperacao,
       };
     }
@@ -264,17 +270,17 @@ export function ListCustomer() {
                     <PhoneOff className="w-5 h-5" />
                   </div>
                   <h3 className="text-sm font-semibold text-red-500 uppercase tracking-wide">
-                    Não atendeu
+                    Sem reposta
                   </h3>
                 </div>
               </div>
               <div className="mb-4">
                 <div className="flex flex-col items-baseline space-x-2">
                   <span className="text-5xl font-bold text-gray-900">
-                    {metrics?.recuperados}
+                    {metrics?.sem_reposta}
                   </span>
                   <span className="text-xl text-red-500 font-medium">
-                    clientes não atendeu
+                    clientes sem resposta
                   </span>
                 </div>
               </div>
@@ -380,18 +386,24 @@ export function ListCustomer() {
                       </TableCell>
 
                       <TableCell className="font-medium">
-                        {format(cliente.data_contato_aceito, "dd/MM/yyyy")}
+                        {cliente.data_contato_aceito}
                       </TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button disabled={cliente.etapa_contato === "recuperado"} variant="ghost" className="h-8 w-8 p-0">
+                            <Button
+                              disabled={
+                                cliente.etapa_contato === "recuperado" ||
+                                cliente.etapa_contato === "sem_resposta"
+                              }
+                              variant="ghost"
+                              className="h-8 w-8 p-0"
+                            >
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem
-                              
                               onClick={() =>
                                 handleViewClient(cliente.id_cliente)
                               }

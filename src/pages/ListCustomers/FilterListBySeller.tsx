@@ -38,7 +38,6 @@ export const ClientListFilter = () => {
           state.set(key, value);
         }
       });
-
       return state;
     });
   }
@@ -75,8 +74,8 @@ export const ClientListFilter = () => {
             <SelectContent>
               <SelectItem value="todos">Todos os Status</SelectItem>
               <SelectItem value="recuperado">Recuperado</SelectItem>
-              <SelectItem value="contato_encerrado">
-                Contato Encerrado
+              <SelectItem value="sem_reposta">
+                Sem reposta
               </SelectItem>
               <SelectItem value="em_contato">Em Contato</SelectItem>
               <SelectItem value="nao_atendeu">Não atendeu</SelectItem>

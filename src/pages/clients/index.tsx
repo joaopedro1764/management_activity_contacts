@@ -1,15 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Phone,
-  Building,
   MessageCircle,
   Users,
   ArrowLeft,
@@ -27,12 +20,13 @@ import {
   DollarSign,
   MapPin,
   Calendar,
-  User,
-  ShieldX,
   FileUser,
   PhoneCall,
   Copy,
   ContactRound,
+  PhoneForwarded,
+  CalendarClock,
+  CalendarOff,
 } from "lucide-react";
 import type {
   ClienteRecuperadoAtivo,
@@ -85,26 +79,34 @@ export function SalesManagement() {
   const options = recuperado ? assuntoSim : assuntoNao;
   const navigate = useNavigate();
 
+
+
   useEffect(() => {
     if (!id_cliente) return;
-    const client = cancelamentos?.find((c) => c.id_cliente === id_cliente);
+    const client = cancelamentos?.find(
+      (c) => String(c.id_cliente) === String(id_cliente)
+    );
     if (client) {
       setSelectedClient(client);
-      setContatoFeito(client.etapa_contato === "em_contato");
-      setRespondido(client.etapa_contato === "contato_encerrado");
+      setContatoFeito(
+        client.etapa_contato === "em_contato" ||
+          client.etapa_contato === "nao_atendeu"
+      );
+      setRespondido(client.etapa_contato === "sem_resposta");
       setRecuperado(client.etapa_contato === "recuperado");
       setCanalDeContato(client.canal_de_contato);
       setTipoDeRecuperacao({
-        id: client.id_diagnostico_atendimento ?? "",
-        status: client.descricao_atendente ?? "",
+        id: client.id_diagnostico ?? "",
+        status: client.descricao_diagnostico ?? "",
       });
     }
   }, [id_cliente, cancelamentos]);
 
   useEffect(() => {
- 
     setClients(
-      cancelamentos?.sort((a, b) => Number(b.pontuacao) - Number(a.pontuacao))
+      [...(cancelamentos ?? [])].sort(
+        (a, b) => Number(b.pontuacao) - Number(a.pontuacao)
+      )
     );
   }, [cancelamentos]);
 
@@ -156,18 +158,18 @@ export function SalesManagement() {
         etapa_contato: "em_contato" as const,
         canal_de_contato: "telefone",
         vendedor_responsavel: user.nome,
-        data_contato_aceito: format(Date.now(), "dd/MM/yyyy"),
+        data_contato_aceito: String(format(Date.now(), "dd/MM/yyyy")),
       };
-      await updateClientFn(updatedClient);
       setSelectedClient(updatedClient);
-  
+      await updateClientFn(updatedClient);
       toast.success("Cliente aceito com sucesso, cheque sua lista");
     }
   }
 
   function determinarStatusFinal():
     | "recuperado"
-    | "contato_encerrado"
+    | "nao_recuperado"
+    | "sem_resposta"
     | "nao_atendeu"
     | "em_contato" {
     if (recuperado) {
@@ -178,22 +180,23 @@ export function SalesManagement() {
       return "em_contato";
     }
 
+    if (!recuperado && contatoFeito && respondido) {
+      return "nao_recuperado";
+    }
+
     if (contatoFeito && deveFecharContato) {
-      return "contato_encerrado";
+      return "sem_resposta";
     }
 
     if (contatoFeito && !respondido) {
       return "nao_atendeu";
     }
 
-    if (contatoFeito && respondido) {
-      return "contato_encerrado";
-    }
     return "em_contato";
   }
 
   function isTratado(status: string): "Sim" | "Não" {
-    if (["contato_encerrado", "recuperado"].includes(status)) {
+    if (["sem_resposta", "recuperado"].includes(status)) {
       return "Sim";
     }
     return "Não";
@@ -209,11 +212,14 @@ export function SalesManagement() {
       etapa_contato: etapaContato,
       tratado: isTratado(etapaContato),
       vendedor_responsavel: user.nome,
-      canal_de_contato: canalDeContato ?? "",
-      descricao_atendente:
-        tipoDeRecuperacao.id ?? "" + descricaoAtendente ?? "",
-      /*  id_diagnostico_atendimento:  ?? "",
-       data_contato_final: etapaContato === "contato_encerrado" || etapaContato === "recuperado" ? String(format(Date.now(), "dd/MM/yyyy")) : "" */
+      canal_de_contato: canalDeContato ?? "Telefone",
+      descricao_atendente: descricaoAtendente,
+      id_diagnostico: tipoDeRecuperacao.id ?? null,
+      descricao_diagnostico: tipoDeRecuperacao.status ?? "",
+      data_contato_final:
+        etapaContato === "sem_resposta" || etapaContato === "recuperado"
+          ? String(format(Date.now(), "dd/MM/yyyy"))
+          : "",
     };
 
     try {
@@ -335,7 +341,7 @@ export function SalesManagement() {
   function copyText(text: string) {
     try {
       navigator.clipboard.writeText(text);
-      toast.success("Id cliente copiado com sucesso!");
+      toast.success("Copiado com sucesso!");
     } catch (err) {
       toast.error("Erro ao copiar texto: " + err);
     }
@@ -343,7 +349,7 @@ export function SalesManagement() {
 
   if (selectedClient) {
     return (
-      <div className="min-h-screen w-full bg-blue-100">
+      <div className="min-h-screen w-full bg-blue-50">
         <div className="p-6 space-y-6">
           {/* Header com botão voltar */}
           <div className="flex items-center gap-4">
@@ -366,91 +372,227 @@ export function SalesManagement() {
           </div>
 
           {/* Card de informações do cliente */}
-          <Card className="w-full border-0 shadow-xl bg-gradient-to-br from-white to-slate-50">
-            <CardHeader className="bg-gradient-to-r from-slate-50 to-blue-50 border-b border-slate-100">
-              <CardTitle className="flex items-center gap-2 text-slate-800">
-                <Users className="h-5 w-5 text-blue-600" />
-                Informações do Cliente
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="text-2xl flex gap-2 items-center font-semibold text-gray-800">
-                      <User className="w-6 h-6 text-blue-500" />{" "}
-                      {selectedClient.id_cliente} - {selectedClient.razao}
-                    </h3>
+          <div className="w-full border-2 border-blue-300 shadow-lg bg-white rounded-lg">
+            {/* Header compacto */}
+            <div className="bg-gradient-to-r border-b border-blue-200 p-6">
+              <div className="flex items-center">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-md">
+                    <ContactRound className="w-6 h-6" />
                   </div>
-                  <div className="space-y-3">
-                    {[
-                      selectedClient.contato_1,
-                      selectedClient.contato_2,
-                      selectedClient.contato_3,
-                    ]
-                      .filter(
-                        (contato, index, self) =>
-                          contato && self.indexOf(contato) === index
-                      )
-                      .map((contato, idx) => (
-                        <div
-                          key={idx}
-                          className="flex items-center gap-2 font-medium"
-                        >
-                          <Phone className="h-5 w-5 text-blue-500" />
-                          <span>{contato}</span>
-                        </div>
-                      ))}
-
-                    <div className="flex items-center gap-3 text-sm">
-                      <Building className="h-5 w-5 text-blue-500" />
-                      <span className="text-slate-700 font-medium">
-                        Permaneceu na base{" "}
-                        {formatMonthsToYearsAndMonths(
-                          Number(selectedClient.meses_ativo)
-                        )}{" "}
-                        meses
+                  <div>
+                    <div className="flex items-center gap-3">
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-blue-600 text-white">
+                        #{selectedClient.id_cliente}
                       </span>
+                      <h3 className="text-xl font-bold text-slate-900">
+                        {selectedClient.razao}
+                      </h3>
                     </div>
                   </div>
                 </div>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3 text-sm">
-                    <MapPin className="h-4 w-4 text-blue-600" />
-                    <span className="font-medium text-slate-700">
-                      {selectedClient.endereco}, {selectedClient.numero} -{" "}
-                      {selectedClient.bairro}, {selectedClient.cidade}
-                    </span>
+                <button
+                  title="Copiar ID do Cliente"
+                  onClick={() => copyText(selectedClient.id_cliente)}
+                  className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200"
+                >
+                  <Copy className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Corpo principal em grid compacto */}
+            <div className="bg-white border-x border-gray-200">
+              <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-gray-200">
+                {/* Coluna 1: Contato e Dados Básicos */}
+                <div className="p-4 space-y-3">
+                  <h3 className="font-semibold text-gray-800 text-sm uppercase tracking-wide border-b pb-1">
+                    Informações cliente:
+                  </h3>
+
+                  <div className="space-y-2">
+                    <div className="flex flex-col gap-2 text-sm">
+                      <div className="space-y-2">
+                        {[
+                          selectedClient.contato_1,
+                          selectedClient.contato_2,
+                          selectedClient.contato_3,
+                        ]
+                          .filter(
+                            (contato, index, self) =>
+                              contato && self.indexOf(contato) === index
+                          )
+                          .map((contato, idx) => (
+                            <div
+                              key={idx}
+                              className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg group hover:bg-blue-100 transition-colors"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 bg-blue-100 group-hover:bg-blue-200 rounded-lg flex items-center justify-center">
+                                  <PhoneCall className="w-4 h-4 text-blue-600" />
+                                </div>
+                                <span className="font-medium text-slate-900">
+                                  {contato}
+                                </span>
+                              </div>
+                              <button
+                                onClick={() => copyText(contato)}
+                                className="opacity-0 group-hover:opacity-100 p-1 text-blue-600 hover:text-blue-700 transition-all duration-200"
+                                title="Copiar telefone"
+                              >
+                                <Copy className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <Calendar className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                          Data do cancelamento
+                        </p>
+                        <p className="font-semibold text-slate-900">
+                          {format(
+                            selectedClient.data_cancelamento,
+                            "dd/MM/yyyy"
+                          )}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-sm font-medium text-slate-700">
-                      Score Interno:
-                    </span>
-                    <span
-                      className={`ml-2 text-xl ${getScoreColor(
-                        selectedClient.pontuacao
-                      )}`}
-                    >
-                      {selectedClient.pontuacao}
-                    </span>
+
+                  <div className="flex items-center gap-3 p-4 border border-slate-200  rounded-xl">
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <CalendarClock className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-blue-800">
+                        Tempo na base
+                      </p>
+                      <p className="text-blue-700">
+                        Permaneceu na base por{" "}
+                        {formatMonthsToYearsAndMonths(
+                          Number(selectedClient.meses_ativo)
+                        )}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-sm font-medium text-slate-700">
-                      Motivo do Cancelamento:
-                    </span>
-                    <p className="text-sm text-slate-600 mt-1 fontbold p-3 bg-gradient-to-r from-slate-50 to-blue-50 rounded-md border border-slate-200">
-                      {selectedClient.motivo_cancelamento}
-                    </p>
+
+                  <div className="flex items-center gap-3 p-4 border border-slate-200 rounded-xl">
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <CalendarOff className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-blue-800">
+                        Tempo desde o cancelamento
+                      </p>
+                      <p className="text-blue-700">
+                        Cliente cancelado há {parts.join(" ")}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Coluna 2: Endereço e Localização */}
+                <div className="p-4 space-y-3">
+                  <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <MapPin className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                        Endereço
+                      </p>
+                      <p className="font-semibold text-slate-900 text-sm">
+                        <p className="text-slate-900 font-medium">
+                          {selectedClient.endereco}, {selectedClient.numero} -{" "}
+                          {selectedClient.bairro}
+                        </p>
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Valores financeiros compactos */}
+                  <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <DollarSign className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                        Valor total recebido
+                      </p>
+                      <p className="font-semibold text-slate-900">
+                        {selectedClient.valor_recebido_total.toLocaleString(
+                          "pt-BR"
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <DollarSign className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                        Valor total em aberto
+                      </p>
+                      <p className="font-semibold text-slate-900">
+                        {selectedClient.valor_aberto_total.toLocaleString(
+                          "pt-BR"
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <PhoneForwarded className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                        Etapa contato
+                      </p>
+                      <p className="font-semibold text-slate-900">
+                        {selectedClient.etapa_contato}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Coluna 3: Motivo do Cancelamento */}
+                <div className="p-4 space-y-3">
+                  <h3 className="font-semibold text-gray-800 text-sm uppercase tracking-wide border-b pb-1">
+                    Motivo do Cancelamento
+                  </h3>
+
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <div className="text-xs font-medium text-blue-800 mb-1">
+                      {selectedClient.motivo_cancelamento ||
+                        "Motivo não informado"}
+                    </div>
+                  </div>
+                  <div className="bg-gray-50 border border-t-0 border-gray-200 rounded-b-lg p-3">
+                    <details className="group">
+                      <summary className="cursor-pointer text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors">
+                        📝 Observações detalhadas (clique para expandir)
+                      </summary>
+                      <div className="mt-2 text-xs text-gray-600 bg-white p-3 rounded border">
+                        {selectedClient.obs_cancelamento ||
+                          "Nenhuma observação disponível."}
+                      </div>
+                    </details>
                   </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Card de status do contato horizontal */}
           <div className="w-full space-y-6">
             {/* Progress Steps Horizontal */}
-            <Card className="border-0 shadow-2xl bg-gradient-to-br from-white via-blue-50 to-indigo-50">
+            <Card className="border-2 border-blue-300 shadow-2xl bg-gradient-to-br from-white via-blue-50 to-indigo-50">
               <CardHeader>
                 <CardTitle className="flex items-center text-xl font-medium gap-2">
                   <Contact className="h-8 w-8 text-blue-500" />
@@ -883,7 +1025,7 @@ export function SalesManagement() {
             </Card>
 
             {/* Status Summary */}
-            <Card className="border-2 border-gray-100">
+            <Card className="border-2 border-blue-300">
               <CardHeader>
                 <CardTitle className="text-lg">Resumo do Status</CardTitle>
               </CardHeader>
@@ -988,101 +1130,182 @@ export function SalesManagement() {
 
   // Dashboard principal
   return (
-    <main className="min-h-screen w-full bg-blue-50 p-4 md:p-6 lg:p-8">
+    <main className="min-h-screen w-full bg-blue-50">
       <div className="w-full space-y-8">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight">
-              Interface do Colaborador
-            </h1>
-            <p className="text-lg text-gray-600 mt-2 font-medium">
-              Gerencie seus clientes de contato ativo com eficiência.
-            </p>
-          </div>
-        </div>
-
         {/* Main Content Area */}
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-6 p-4 md:p-6 lg:p-8">
           {/* Próximo Cliente Card - Takes 2/3 of the width on large screens */}
           <Card className="w-full shadow-lg border-2 border-blue-300">
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center gap-3 text-2xl font-bold text-gray-800">
-                <Users className="h-6 w-6 text-blue-600" />
-                Próximo Cliente
-              </CardTitle>
-              <CardDescription className="text-md text-gray-600">
-                Detalhes de clientes disponíveis para contato.
-              </CardDescription>
-            </CardHeader>
             <CardContent className="pt-6">
               {nextClient ? (
                 <div className="space-y-8">
+                  <h3 className="text-xl font-bold text-slate-600">
+                    N-Recupera+ — Plataforma de recuperação de clientes
+                    cancelados
+                  </h3>
                   {/* Grid Principal */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     {/* Informações do Cliente */}
-                    <div className="space-y-5 border border-blue-300 rounded-xl bg-white flex items-center p-6 shadow-sm">
-                      <div className="space-y-3 text-gray-900 text-[15px]">
-                        <div className="flex items-center gap-2 text-xl">
-                          <ContactRound className="h-5 w-5" />
-                          <span className="font-medium flex items-center gap-2">
-                            {nextClient.id_cliente} - {nextClient.razao}
-                            <button
-                              title="Copiar ID do Cliente"
-                              onClick={() => copyText(nextClient.id_cliente)}
-                            >
-                              <Copy className="h-5 w-5 text-gray-700 cursor-pointer" />
-                            </button>
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <FileUser className="h-5 w-5" />
-                          <span className="font-medium">
-                            {nextClient.cnpj_cpf}
-                          </span>
-                        </div>
-                        {[
-                          nextClient.contato_1,
-                          nextClient.contato_2,
-                          nextClient.contato_3,
-                        ]
-                          .filter(
-                            (contato, index, self) =>
-                              contato && self.indexOf(contato) === index
-                          )
-                          .map((contato, idx) => (
-                            <div
-                              key={idx}
-                              className="flex items-center gap-2 font-medium"
-                            >
-                              <PhoneCall className="h-5 w-5" />
-                              <span>{contato}</span>
+                    <div className="bg-white border-2 border-blue-200 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
+                      {/* Header Section */}
+                      <div className="bg-gradient-to-r from-blue-50 to-blue-100 border-b border-blue-200 p-6">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-md">
+                              <ContactRound className="w-6 h-6" />
                             </div>
-                          ))}
-                        <div className="flex items-center gap-2">
-                          <MapPin className="h-5 w-5" />
-                          <span>
-                            {nextClient.endereco}, {nextClient.numero} -{" "}
-                            {nextClient.bairro}, {nextClient.cidade}
-                          </span>
+                            <div>
+                              <div className="flex items-center gap-3">
+                                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-blue-600 text-white">
+                                  #{nextClient.id_cliente}
+                                </span>
+                                <h3 className="text-xl font-bold text-slate-900">
+                                  {nextClient.razao}
+                                </h3>
+                              </div>
+                              <p className="text-sm text-slate-600 mt-1">
+                                Cliente disponível para contato
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            title="Copiar ID do Cliente"
+                            onClick={() => copyText(nextClient.id_cliente)}
+                            className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200"
+                          >
+                            <Copy className="w-5 h-5" />
+                          </button>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-5 w-5" />
-                          <span className="font-medium">
-                            Data de cancelamento:{" "}
-                            {format(nextClient.data_cancelamento, "dd/MM/yyyy")}
-                          </span>
+                      </div>
+
+                      {/* Content Section */}
+                      <div className="p-6">
+                        {/* Client Details Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                          {/* CPF/CNPJ */}
+                          <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                              <FileUser className="w-5 h-5 text-blue-600" />
+                            </div>
+                            <div>
+                              <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                                CPF/CNPJ
+                              </p>
+                              <p className="font-semibold text-slate-900">
+                                {nextClient.cnpj_cpf}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Data de Cancelamento */}
+                          <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                              <Calendar className="w-5 h-5 text-blue-600" />
+                            </div>
+                            <div>
+                              <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                                Data do cancelamento
+                              </p>
+                              <p className="font-semibold text-slate-900">
+                                {format(
+                                  nextClient.data_cancelamento,
+                                  "dd/MM/yyyy"
+                                )}
+                              </p>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 font-semibold">
-                          <Building className="h-5 w-5 text-green-600" />
-                          Permaneceu na base{" "}
-                          {formatMonthsToYearsAndMonths(
-                            Number(nextClient.meses_ativo)
-                          )}{" "}
+
+                        {/* Contacts Section */}
+                        <div className="mb-6">
+                          <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+                            <PhoneCall className="w-4 h-4" />
+                            Contatos Disponíveis
+                          </h4>
+                          <div className="space-y-2">
+                            {[
+                              nextClient.contato_1,
+                              nextClient.contato_2,
+                              nextClient.contato_3,
+                            ]
+                              .filter(
+                                (contato, index, self) =>
+                                  contato && self.indexOf(contato) === index
+                              )
+                              .map((contato, idx) => (
+                                <div
+                                  key={idx}
+                                  className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg group hover:bg-blue-100 transition-colors"
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 bg-blue-100 group-hover:bg-blue-200 rounded-lg flex items-center justify-center">
+                                      <PhoneCall className="w-4 h-4 text-blue-600" />
+                                    </div>
+                                    <span className="font-medium text-slate-900">
+                                      {contato}
+                                    </span>
+                                  </div>
+                                  <button
+                                    onClick={() => copyText(contato)}
+                                    className="opacity-0 group-hover:opacity-100 p-1 text-blue-600 hover:text-blue-700 transition-all duration-200"
+                                    title="Copiar telefone"
+                                  >
+                                    <Copy className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              ))}
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 font-semibold">
-                          <ShieldX className="h-5 w-5 text-red-600" />
-                          Cancelado há: {parts.join(" e ")}
+
+                        {/* Address Section */}
+                        <div className="mb-6">
+                          <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+                            <MapPin className="w-4 h-4" />
+                            Endereço
+                          </h4>
+                          <div className="p-4 bg-slate-50 rounded-xl border flex gap-3 items-center border-slate-200">
+                            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                              <MapPin className="w-5 h-5 text-blue-600" />
+                            </div>
+                            <p className="text-slate-900 font-medium">
+                              {nextClient.endereco}, {nextClient.numero} -{" "}
+                              {nextClient.bairro}, {nextClient.cidade}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Status Tags */}
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-3 p-4 border border-slate-200  rounded-xl">
+                            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                              <CalendarClock className="w-5 h-5 text-blue-600" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-blue-800">
+                                Tempo na base
+                              </p>
+                              <p className="text-blue-700">
+                                Permaneceu na base por{" "}
+                                {formatMonthsToYearsAndMonths(
+                                  Number(nextClient.meses_ativo)
+                                )}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3 p-4 border border-slate-200 rounded-xl">
+                            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                              <CalendarOff className="w-5 h-5 text-blue-600" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-blue-800">
+                                Tempo desde o cancelamento
+                              </p>
+                              <p className="text-blue-700">
+                                Cliente cancelado há {parts.join(" ")}
+                              </p>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1090,7 +1313,7 @@ export function SalesManagement() {
                     {/* Score, Cancelamento e Financeiro */}
                     <div className="space-y-6">
                       {/* Score */}
-                      <div className="bg-blue-100/60 border border-blue-300 font-medium rounded-xl p-5 flex gap-2 items-center shadow-sm">
+                      <div className="bg-blue-100/60 border-2 border-blue-300 font-medium rounded-xl p-5 flex gap-2 items-center shadow-sm">
                         <span className="text-xl uppercase font-semibold">
                           Score Interno:
                         </span>
@@ -1115,7 +1338,7 @@ export function SalesManagement() {
                           {nextClient.motivo_cancelamento}
                         </div>
                         {nextClient.obs_cancelamento && (
-                          <p className="text-[13px] text-gray-700 mt-1 leading-relaxed">
+                          <p className="text-[15px] text-gray-700 mt-1 leading-relaxed">
                             <strong>Observação:</strong>{" "}
                             {nextClient.obs_cancelamento}
                           </p>
@@ -1125,10 +1348,10 @@ export function SalesManagement() {
                       {/* Valores Financeiros */}
                       <div className="grid grid-cols-2 gap-4 border-t pt-4 text-sm text-gray-700">
                         <div className="flex items-center gap-2">
-                          <DollarSign className="w-4 h-4 text-green-600" />
+                          <DollarSign className="w-4 h-4 text-blue-600" />
                           <span>
                             Valor Recebido:{" "}
-                            <span className="font-semibold text-green-700">
+                            <span className="font-semibold text-blue-700">
                               R${" "}
                               {nextClient.valor_recebido_total.toLocaleString(
                                 "pt-BR"
@@ -1137,10 +1360,10 @@ export function SalesManagement() {
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <DollarSign className="w-4 h-4 text-red-600" />
+                          <DollarSign className="w-4 h-4 text-blue-600" />
                           <span>
                             Valor Aberto:{" "}
-                            <span className="font-semibold text-red-700">
+                            <span className="font-semibold text-blue-700">
                               R${" "}
                               {nextClient.valor_aberto_total.toLocaleString(
                                 "pt-BR"
@@ -1157,7 +1380,7 @@ export function SalesManagement() {
                     <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
                       <Button
                         onClick={handlePreviousClient}
-                        className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-lg shadow-sm"
+                        className="flex items-center gap-2 text-black bg-transparent border border-gray-300 px-6 py-3 rounded-lg hover:bg-gray-100 shadow-sm"
                       >
                         <ArrowBigLeft className="h-5 w-5" />
                         Voltar
@@ -1165,7 +1388,7 @@ export function SalesManagement() {
                       <Button
                         variant="outline"
                         onClick={handleNextClient}
-                        className="flex items-center gap-2 border-gray-300 text-gray-700 hover:bg-blue-400 px-6 py-3 rounded-lg shadow-sm"
+                        className="flex items-center gap-2 border text-black border-gray-300 hover:bg-blue-500 hover:text-white px-6 py-3 rounded-lg shadow-sm"
                       >
                         <ArrowBigRight className="h-5 w-5" />
                         Pular Cliente
@@ -1173,7 +1396,7 @@ export function SalesManagement() {
                     </div>
                     <Button
                       onClick={handleAcceptClient}
-                      className="flex items-center gap-3 bg-green-600 hover:bg-green-700 text-white text-lg font-semibold px-8 py-4 rounded-lg shadow-md w-full sm:w-auto"
+                      className="flex items-center gap-2 text-black bg-transparent border border-gray-300 px-6 py-3 rounded-lg hover:bg-blue-500 hover:text-white shadow-sm"
                     >
                       <CircleCheck className="h-6 w-6" />
                       Aceitar Cliente
