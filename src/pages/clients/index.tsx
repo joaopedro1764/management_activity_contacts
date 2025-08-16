@@ -79,8 +79,6 @@ export function SalesManagement() {
   const options = recuperado ? assuntoSim : assuntoNao;
   const navigate = useNavigate();
 
-
-
   useEffect(() => {
     if (!id_cliente) return;
     const client = cancelamentos?.find(
@@ -383,7 +381,7 @@ export function SalesManagement() {
                   <div>
                     <div className="flex items-center gap-3">
                       <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-blue-600 text-white">
-                        #{selectedClient.id_cliente}
+                        {selectedClient.id_cliente}
                       </span>
                       <h3 className="text-xl font-bold text-slate-900">
                         {selectedClient.razao}
@@ -1139,9 +1137,9 @@ export function SalesManagement() {
             <CardContent className="pt-6">
               {nextClient ? (
                 <div className="space-y-8">
-                  <h3 className="text-xl font-bold text-slate-600">
-                    N-Recupera+ — Plataforma de recuperação de clientes
-                    cancelados
+                  <h3 className="text-xl font-medium text-slate-600">
+                    <strong>N-Recupera+</strong> | Plataforma de recuperação de
+                    clientes cancelados
                   </h3>
                   {/* Grid Principal */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -1156,8 +1154,13 @@ export function SalesManagement() {
                             </div>
                             <div>
                               <div className="flex items-center gap-3">
-                                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-blue-600 text-white">
-                                  #{nextClient.id_cliente}
+                                <span
+                                  onClick={() =>
+                                    copyText(nextClient.id_cliente)
+                                  }
+                                  className="inline-flex items-center px-3 py-1 rounded-full text-sm cursor-copy font-semibold bg-blue-600 text-white"
+                                >
+                                  {nextClient.id_cliente}
                                 </span>
                                 <h3 className="text-xl font-bold text-slate-900">
                                   {nextClient.razao}
@@ -1183,7 +1186,10 @@ export function SalesManagement() {
                         {/* Client Details Grid */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                           {/* CPF/CNPJ */}
-                          <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                          <div
+                            className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200 cursor-copy"
+                            onClick={() => copyText(nextClient.cnpj_cpf)}
+                          >
                             <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
                               <FileUser className="w-5 h-5 text-blue-600" />
                             </div>

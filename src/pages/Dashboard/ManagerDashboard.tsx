@@ -434,11 +434,11 @@ export function ManagerDashboard() {
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="w-5 h-5 text-emerald-600" />
                 <CardTitle className="text-lg text-emerald-700 font-medium">
-                  Performance por Recuperados
+                  Recuperados
                 </CardTitle>
               </div>
               <CardDescription>
-                Top 4 motivos de sucesso na recuperação
+                Top 5 motivos de sucesso na recuperação
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -500,11 +500,11 @@ export function ManagerDashboard() {
               <div className="flex items-center gap-2">
                 <AlertCircle className="w-5 h-5 text-red-600" />
                 <CardTitle className="text-lg text-red-700 font-medium">
-                  Performance por Não Recuperados
+                  Não Recuperados
                 </CardTitle>
               </div>
               <CardDescription>
-                Top 4 motivos de não recuperação
+                Top 5 motivos de não recuperação
               </CardDescription>
             </CardHeader>
             <CardContent>
