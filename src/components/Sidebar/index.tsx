@@ -73,7 +73,7 @@ export function Sidebar({
   const { user, logout } = useAuth();
 
   function getInitials(nome: string) {
-    const partes = nome.trim().split(" "); // separa por espaço
+    const partes = nome.trim().split(" ");
     const primeiraInicial = partes[0]?.[0] || "";
     const segundaInicial = partes[1]?.[0] || "";
     return (primeiraInicial + segundaInicial).toUpperCase();
@@ -91,7 +91,7 @@ export function Sidebar({
       {/* Sidebar */}
       <aside
         className={`
-          fixed top-0 left-0 h-full z-50 shadow-2xl border-r border-blue-200 transition-all duration-300
+          fixed top-0 left-0 h-full z-50 shadow-2xl border-r border-blue-200 transition-all rounded-2xl duration-300
           bg-gradient-to-br from-blue-50 via-white to-blue-100
           ${isMobile ? "w-full max-w-[300px]" : isCollapsed ? "w-20" : "w-72"}
           ${isOpenSidebar ? "translate-x-0" : "-translate-x-full"}

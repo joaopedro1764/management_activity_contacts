@@ -1,157 +1,180 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Eye, EyeOff, Lock, Mail, Shield } from "lucide-react";
-import { useForm } from "react-hook-form"
+import { useForm } from "react-hook-form";
 import type { LoginProps } from "@/types/client";
 import { useAuth } from "@/context/AuthContext";
+import fundoLogin from "../../assets/fundo-login.jpg";
+import { Button } from "@/components/ui/button";
+import { ArrowRight, Eye, EyeOff, Lock, Mail } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 export function Login() {
   const [showPassword, setShowPassword] = useState(false);
 
-  const { register, handleSubmit } = useForm<LoginProps>()
+  const { register, handleSubmit } = useForm<LoginProps>();
 
-
-
-  const { login } = useAuth()
+  const { login } = useAuth();
 
   async function handleLogin({ email, senha }: LoginProps) {
-    await login({ email, senha })
+    await login({ email, senha });
   }
   return (
-    <div className="min-h-screen bg-gradient-background relative overflow-hidden">
-      {/* Background decorative elements */}
-      <div className="absolute inset-0 bg-gradient-mesh"></div>
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary-glow/5" />
 
-      {/* Floating geometric shapes */}
-      <div className="absolute top-20 left-10 w-20 h-20 bg-blue-100 rounded-full opacity-50 animate-pulse"></div>
-      <div className="absolute bottom-32 right-16 w-16 h-16 bg-blue-50 rounded-lg rotate-45 opacity-40"></div>
-      <div className="absolute top-1/2 left-1/4 w-12 h-12 bg-primary opacity-20 rounded-full"></div>
-      <div className="absolute bottom-1/4 left-1/2 w-8 h-8 bg-blue-500 opacity-30 rounded-full animate-pulse delay-1000"></div>
+      <div className="relative z-10 min-h-screen flex">
+        {/* Left Side - Hero Image and Branding */}
+        <div className="hidden lg:flex lg:w-1/2 relative">
+          <div className="absolute inset-0 bg-gradient-to-br from-background/20 to-background/10" />
+          <img
+            src={fundoLogin}
+            alt="Sistema de Recuperação"
+            className="w-full h-full object-cover opacity-60"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent" />
 
-      {/* Grid pattern overlay */}
-      <div
-        className="absolute inset-0 opacity-5"
-        style={{
-          backgroundImage: `
-            linear-gradient(hsl(217 91% 60% / 0.1) 1px, transparent 1px),
-            linear-gradient(90deg, hsl(217 91% 60% / 0.1) 1px, transparent 1px)
-          `,
-          backgroundSize: '50px 50px'
-        }}
-      ></div>
-
-      <div className="relative z-10 flex items-center justify-center min-h-screen p-4">
-        <div className="w-full max-w-md">
-          {/* Logo/Brand Section */}
-          <div className="text-center mb-8 animate-fade-in">
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-primary rounded-3xl shadow-elegant mb-6 relative">
-              <div className="absolute inset-0 bg-white rounded-3xl opacity-20"></div>
-              <Shield className="w-10 h-10 text-primary-foreground relative z-10" />
+          {/* Company Branding */}
+          <div className="absolute bottom-0 left-0 right-0 p-12">
+            <div className="space-y-4">
+              <h1 className="text-4xl font-bold text-foreground">
+                N-Multifibra
+              </h1>
+              <h2 className="text-xl text-primary font-semibold">
+                Sistema N-Recupera +
+              </h2>
+              <p className="text-lg text-foreground/70 max-w-md leading-relaxed">
+                Potencialize a recuperação de clientes com tecnologia avançada e
+                conectividade de fibra óptica.
+              </p>
             </div>
-            <h1 className="text-3xl font-bold text-foreground mb-2 tracking-tight">
-              Sistema de contatos ativos
-            </h1>
-            <p className="text-muted-foreground text-lg">
-              Acesse sua conta para continuar
-            </p>
           </div>
+        </div>
 
-          {/* Login Card */}
-          <Card className="shadow-elegant border-0 animate-slide-in backdrop-blur-sm bg-white/95">
-            <CardHeader className="space-y-1 pb-6">
-              <CardTitle className="text-xl text-center">Entrar na sua conta</CardTitle>
-              <CardDescription className="text-center">
-                Digite suas credenciais para acessar o sistema
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit(handleLogin)} className="space-y-6">
-                {/* Email Field */}
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-sm font-medium">
-                    E-mail
-                  </Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="seu@email.com"
-                      {...register("email")}
-                      className="pl-10 h-12 focus:ring-primary border-border"
-                      required
-                    />
+        {/* Right Side - Login Form */}
+        <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
+          <div className="w-full max-w-md">
+            {/* Mobile branding */}
+            <div className="lg:hidden text-center mb-8">
+              <h1 className="text-3xl font-bold text-foreground mb-2">
+                N-Multifibra
+              </h1>
+              <h2 className="text-lg text-primary font-semibold">
+                Sistema N-Recupera +
+              </h2>
+            </div>
+
+            <Card className="w-full max-w-md bg-gradient-to-br from-card/90 to-card/50 backdrop-blur-xl border-border/20 shadow-2xl">
+              <CardHeader className="text-center space-y-4">
+                <div className="flex flex-col items-center space-y-2">
+                  <div className="w-16 h-16 bg-gradient-to-br from-primary to-primary-glow rounded-2xl flex items-center justify-center shadow-elegant">
+                    <ArrowRight className="w-8 h-8 text-primary-foreground rotate-[-45deg]" />
+                  </div>
+                  <div className="space-y-1">
+                    <CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-gray-100">
+                      N-Recupera +
+                    </CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      Sistema N-Multifibra
+                    </p>
                   </div>
                 </div>
+                <CardDescription className="text-center text-foreground/70">
+                  Entre na sua conta para acessar o sistema de recuperação
+                </CardDescription>
+              </CardHeader>
 
-                {/* Password Field */}
-                <div className="space-y-2">
-                  <Label htmlFor="password" className="text-sm font-medium">
-                    Senha
-                  </Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      {...register("senha")}
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      placeholder="••••••••"
-                      className="pl-10 pr-12 h-12 focus:ring-primary border-border"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-3 h-6 w-6 text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      {showPassword ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
+              <CardContent>
+                <form
+                  className="space-y-4"
+                  onSubmit={handleSubmit(handleLogin)}
+                >
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="email"
+                        className="text-sm font-medium text-foreground"
+                      >
+                        E-mail
+                      </Label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                        <Input
+                          id="email"
+                          type="email"
+                          placeholder="seu@email.com"
+                          {...register("email")}
+                          className="pl-10 h-12 bg-background/50 border-border/30 focus:border-primary/50 transition-all duration-300"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="password"
+                        className="text-sm font-medium text-foreground"
+                      >
+                        Senha
+                      </Label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                        <Input
+                          id="password"
+                          type={showPassword ? "text" : "password"}
+                          placeholder="••••••••"
+                          {...register("senha")}
+                          className="pl-10 pr-10 h-12 bg-background/50 border-border/30 focus:border-primary/50 transition-all duration-300"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          {showPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="text-right">
+                    <button className="text-sm text-primary hover:text-primary-glow transition-colors underline-offset-4 hover:underline">
+                      Esqueceu a senha?
                     </button>
                   </div>
-                </div>
 
-                {/* Remember Me & Forgot Password */}
-                <div className="flex items-center justify-between">
-                  <a
-                    href="#"
-                    className="text-sm text-primary hover:text-primary-hover transition-colors"
+                  <Button
+                    type="submit"
+                    size="lg"
+                    className="w-full h-12 text-base font-semibold"
                   >
-                    Esqueceu a senha?
-                  </a>
-                </div>
+                    Entrar no Sistema
+                    <ArrowRight className="h-5 w-5 ml-2" />
+                  </Button>
 
-                {/* Login Button */}
-                <Button
-                  type="submit"
-                  variant="default"
-                  size="lg"
-                  className="w-full h-12"
-                >
-                  Entrar no Sistema
-                </Button>
-              </form>
-
-            </CardContent>
-          </Card>
-
-          {/* Footer */}
-          <div className="text-center mt-6 text-sm text-muted-foreground">
-            Não tem uma conta?{" "}
-            <a
-              href="#"
-              className="text-primary hover:text-primary-hover transition-colors font-medium"
-            >
-              Fale com seu gestor
-            </a>
+                  <div className="text-center">
+                    <p className="text-sm text-muted-foreground">
+                      Não tem uma conta?{" "}
+                      <button className="text-primary hover:text-primary-glow transition-colors underline-offset-4 hover:underline">
+                        Fale com seu gestor
+                      </button>
+                    </p>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>
     </div>
   );
-};
-
+}

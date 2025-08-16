@@ -15,6 +15,20 @@ export function useCliente() {
   });
 }
 
+export function useUsers() {
+  return useQuery({
+    queryKey: ["usuarios"],
+    queryFn: async () => {
+      
+      const response = await axios.get<string[]>(
+        "http://10.0.30.251:3011/usuarios"
+      );
+      return response.data;
+    },
+  });
+}
+
+
 export function useLogin() {
   return useMutation({
     mutationFn: async ({ email, senha }: LoginProps) => {
@@ -26,6 +40,8 @@ export function useLogin() {
     },
   });
 }
+
+
 
 export function useUpdateClient() {
   const queryClient = useQueryClient();

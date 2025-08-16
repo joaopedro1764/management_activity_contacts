@@ -27,7 +27,6 @@ import {
 import { Pagination } from "@/components/pagination";
 import { useCliente } from "@/api/api";
 import { useAuth } from "@/context/AuthContext";
-import { format } from "date-fns";
 import { ClientListFilter } from "./FilterListBySeller";
 import { useNavigate, useSearchParams } from "react-router";
 
@@ -49,7 +48,7 @@ function getContactStatusColor(status: string) {
       return "bg-orange-500 text-white border border-orange-200";
     case "recuperado":
       return "bg-green-500 text-white border border-green-200";
-      case "nao_recuperado":
+    case "nao_recuperado":
       return "bg-red-500 text-white border border-red-200";
     default:
       return "bg-gray-500 text-white";
@@ -173,21 +172,21 @@ export function ListCustomer() {
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-slate-50 to-blue-50">
-      <div className="p-6 space-y-6">
+      <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
-              Dashboard do Vendedor
-            </h1>
-            <p className="text-slate-600 mt-1">
-              Gerencie seus clientes e acompanhe suas métricas
-            </p>
+        <div className="bg-blue-500 text-white rounded">
+          <div className="container px-6 py-8">
+            <div className="max-w-4xl">
+              <h1 className="text-4xl font-bold mb-3">Dashboard do Vendedor</h1>
+              <p className="text-lg opacity-90">
+                Gerencie seus clientes e acompanhe suas métricas de recuperação
+              </p>
+            </div>
           </div>
         </div>
 
         {/* Cards de Métricas */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 p-6">
           <div className="bg-white border-blue-400 border-2 rounded-lg">
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">

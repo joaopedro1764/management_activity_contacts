@@ -22,15 +22,16 @@ import {
   Award,
   MessageSquare,
   TrendingUp,
-  TrendingDown,
   CheckCircle2,
   AlertCircle,
   Target,
+  X,
 } from "lucide-react";
 import { arrayStatusOrdemDesejada, type KPIData } from "@/types/client";
 import { Pagination } from "@/components/pagination";
-import { useCliente } from "@/api/api";
+import { useCliente, useUsers } from "@/api/api";
 import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
 
 function getStatusLabel(status: string) {
   if (status === "em_contato") {
@@ -54,21 +55,83 @@ function getStatusLabel(status: string) {
 
 export function ManagerDashboard() {
   const { data: allClients, isLoading } = useCliente();
+  const { data: usuarios } = useUsers();
+  const [filtros, setFiltros] = useState({
+    periodo: "todos",
+    vendedor: "todos",
+    status: "todos",
+    canal: "todos",
+  });
+
+  const dadosFiltrados = useMemo(() => {
+    return allClients?.filter((item) => {
+      let ok = true;
+
+      const periodo = filtros.periodo || "30d"; // fallback para 30d
+      const dataCliente = new Date(item.data_contato_aceito);
+
+      // Filtro por período
+      if (periodo === "30d") {
+        const limite = new Date();
+        limite.setDate(limite.getDate() - 30);
+        ok = ok && dataCliente >= limite;
+      }
+
+      if (periodo === "90d") {
+        const limite = new Date();
+        limite.setDate(limite.getDate() - 90);
+        ok = ok && dataCliente >= limite;
+      }
+
+      if (periodo === "1y") {
+        const limite = new Date();
+        limite.setFullYear(limite.getFullYear() - 1);
+        ok = ok && dataCliente >= limite;
+      }
+
+      // Vendedor
+      if (filtros.vendedor && filtros.vendedor !== "todos") {
+        ok =
+          ok &&
+          item.vendedor_responsavel?.toLowerCase() ===
+            filtros.vendedor.toLowerCase();
+      }
+
+      // Status
+      if (filtros.status && filtros.status !== "todos") {
+        ok =
+          ok &&
+          item.etapa_contato
+            ?.toLowerCase()
+            .includes(filtros.status.toLowerCase());
+      }
+
+      // Canal
+      if (filtros.canal && filtros.canal !== "todos") {
+        ok =
+          ok &&
+          item.canal_de_contato?.toLowerCase() === filtros.canal.toLowerCase();
+      }
+
+      return ok;
+    });
+  }, [allClients, filtros]);
+
   const [currentPage, setCurrentPage] = useState<number>(1);
   const itemsPerPage = 5;
-  const totalPages = Math.ceil((allClients?.length ?? 0) / itemsPerPage);
+  const totalPages = Math.ceil((dadosFiltrados?.length ?? 0) / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
 
   const paginatedItems = useMemo(() => {
-    if (!allClients) return [];
-    return allClients
+    if (!dadosFiltrados) return [];
+    return dadosFiltrados
       .filter(
         (client) =>
           client?.pontuacao != null && !isNaN(Number(client.pontuacao))
       )
       .sort((a, b) => Number(b.pontuacao) - Number(a.pontuacao))
       .slice(startIndex, startIndex + itemsPerPage);
-  }, [allClients, startIndex, itemsPerPage]);
+  }, [dadosFiltrados, startIndex, itemsPerPage]);
 
   const goToPage = (page: number) =>
     setCurrentPage(Math.min(Math.max(page, 1), totalPages));
@@ -76,7 +139,6 @@ export function ManagerDashboard() {
   const goToLastPage = () => goToPage(totalPages);
   const goToPreviousPage = () => goToPage(currentPage - 1);
   const goToNextPage = () => goToPage(currentPage + 1);
-
   const getVisiblePageNumbers = () => {
     const delta = 2;
     const left = Math.max(1, currentPage - delta);
@@ -85,32 +147,6 @@ export function ManagerDashboard() {
     for (let i = left; i <= right; i++) pages.push(i);
     return pages;
   };
-
-  const [filtros, setFiltros] = useState({
-    periodo: "",
-    vendedor: "",
-    status: "",
-    canal: "",
-  });
-
-  const handleSelectChange = (name, value) => {
-    setFiltros((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const dadosFiltrados = allClients
-    ? allClients.filter((cliente) => {
-        return (
-          (filtros.status ? cliente.etapa_contato === filtros.status : true) &&
-          (filtros.vendedor
-            ? cliente.vendedor_responsavel === filtros.vendedor
-            : true) &&
-          (filtros.canal ? cliente.canal_de_contato === filtros.canal : true)
-        );
-      })
-    : allClients;
 
   const kpiData: KPIData = useMemo(() => {
     if (!allClients || allClients.length === 0) {
@@ -168,7 +204,7 @@ export function ManagerDashboard() {
     totalPorStatusDiagnosticoRecuperado,
     totalPorVendedor,
   } = useMemo(() => {
-    if (!dadosFiltrados || dadosFiltrados.length === 0) {
+    if (!allClients || allClients.length === 0) {
       return {
         statusDistribution: {
           em_contato: 0,
@@ -184,24 +220,19 @@ export function ManagerDashboard() {
       };
     }
 
-    return dadosFiltrados.reduce(
+    const resultado = allClients.reduce(
       (acc, client) => {
         // Distribuição de status
         const status = client.etapa_contato?.trim() || "pendentes_contato";
         acc.statusDistribution[status] =
           (acc.statusDistribution[status] || 0) + 1;
 
-        const vendedor = client.vendedor_responsavel.trim();
-        acc.totalPorVendedor[vendedor] =
-          (acc.totalPorVendedor[vendedor] || 0) + 1;
         // Canais
         if (client.canal_de_contato === "whatsapp") acc.channelStats.whatsapp++;
         if (client.canal_de_contato === "telefone") acc.channelStats.telefone++;
 
         const nomeDiagnostico = client.descricao_diagnostico;
-        if (!nomeDiagnostico) return acc;
-
-        const diagLower = nomeDiagnostico.toLowerCase();
+        const diagLower = nomeDiagnostico?.toLowerCase() || "";
 
         // Recuperados (mas não "Não Recuperado")
         if (
@@ -211,7 +242,6 @@ export function ManagerDashboard() {
           const existente = acc.totalPorStatusDiagnosticoRecuperado.find(
             (item) => item.nome === nomeDiagnostico
           );
-
           if (existente) existente.quantidade++;
           else
             acc.totalPorStatusDiagnosticoRecuperado.push({
@@ -225,13 +255,45 @@ export function ManagerDashboard() {
           const existente = acc.totalPorStatusDiagnosticoNaoRecuperado.find(
             (item) => item.nome === nomeDiagnostico
           );
-
           if (existente) existente.quantidade++;
           else
             acc.totalPorStatusDiagnosticoNaoRecuperado.push({
               nome: nomeDiagnostico,
               quantidade: 1,
             });
+        }
+
+        // ---- AGRUPAR POR VENDEDOR (apenas com vendedor atribuído) ----
+        if (
+          !client.vendedor_responsavel ||
+          !client.vendedor_responsavel.trim()
+        ) {
+          return acc; // ignora se não tiver vendedor
+        }
+
+        const vendedor = client.vendedor_responsavel.trim();
+        let vendedorExistente = acc.totalPorVendedor.find(
+          (v) => v.vendedor === vendedor
+        );
+
+        if (!vendedorExistente) {
+          vendedorExistente = {
+            vendedor,
+            totalClientes: 0,
+            recuperacoes: 0,
+          };
+          acc.totalPorVendedor.push(vendedorExistente);
+        }
+
+        // Incrementa total de clientes
+        vendedorExistente.totalClientes++;
+
+        // Incrementa recuperações
+        if (
+          diagLower.includes("recuperado") &&
+          !diagLower.includes("não recuperado")
+        ) {
+          vendedorExistente.recuperacoes++;
         }
 
         return acc;
@@ -253,10 +315,31 @@ export function ManagerDashboard() {
           nome: string;
           quantidade: number;
         }[],
-        totalPorVendedor: [],
+        totalPorVendedor: [] as {
+          vendedor: string;
+          totalClientes: number;
+          recuperacoes: number;
+          taxaConversao?: number;
+          ranking?: string;
+        }[],
       }
     );
-  }, [dadosFiltrados]);
+
+    // Calcula taxa de conversão e ranking
+    resultado.totalPorVendedor = resultado.totalPorVendedor
+      .map((v) => ({
+        ...v,
+        taxaConversao:
+          v.totalClientes > 0 ? (v.recuperacoes / v.totalClientes) * 100 : 0,
+      }))
+      .sort((a, b) => b.taxaConversao - a.taxaConversao)
+      .map((v, idx) => ({
+        ...v,
+        ranking: `#${idx + 1}`,
+      }));
+
+    return resultado;
+  }, [allClients]);
 
   if (isLoading) {
     return (
@@ -269,14 +352,17 @@ export function ManagerDashboard() {
     );
   }
 
-  console.log(totalPorVendedor.map((item)=>{
-    return item
-  }))
+  if (!allClients) {
+    return <p>Ocorreu um erro na API</p>;
+  }
+
+  const recuperado = Number(kpiData.totalRecuperado) || 0;
+  const naoRecuperado = Number(kpiData.totalNaoRecuperado) || 0;
 
   const taxaConversao =
-    (kpiData.totalRecuperado /
-      (kpiData.totalRecuperado + kpiData.totalNaoRecuperado)) *
-    100;
+    recuperado + naoRecuperado > 0
+      ? (recuperado / (recuperado + naoRecuperado)) * 100
+      : 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-slate-100">
@@ -298,79 +384,6 @@ export function ManagerDashboard() {
 
       <div className="px-6 py-8">
         {/* Filters Section */}
-        <Card className="mb-8 shadow-sm border-blue-200 bg-gradient-to-r from-white to-blue-50/30">
-          <CardHeader className="pb-4">
-            <div className="flex items-center gap-2">
-              <Filter className="w-5 h-5 text-blue-600" />
-              <CardTitle className="text-lg text-blue-900">
-                Filtros Avançados
-              </CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div>
-                <label className="text-sm font-medium text-blue-800 mb-2 block">
-                  Período
-                </label>
-                <Select>
-                  <SelectTrigger className="border-blue-200 focus:border-blue-500 w-full">
-                    <SelectValue placeholder="Filtre pelo período" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="30d">Últimos 30 dias</SelectItem>
-                    <SelectItem value="90d">Últimos 90 dias</SelectItem>
-                    <SelectItem value="1y">Último ano</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-blue-800 mb-2 block">
-                  Vendedor
-                </label>
-                <Select>
-                  <SelectTrigger className="border-blue-200 focus:border-blue-500 w-full">
-                    <SelectValue placeholder="Filtre pelo vendedor" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="joao">João Pedro</SelectItem>
-                    <SelectItem value="maria">Maria Silva</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-blue-800 mb-2 block">
-                  Status
-                </label>
-                <Select>
-                  <SelectTrigger className="border-blue-200 focus:border-blue-500 w-full">
-                    <SelectValue placeholder="Filtre pelo status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="recuperado">Recuperado</SelectItem>
-                    <SelectItem value="contato">Em Contato</SelectItem>
-                    <SelectItem value="pendente">Pendente</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-blue-800 mb-2 block">
-                  Canal
-                </label>
-                <Select>
-                  <SelectTrigger className="border-blue-200 focus:border-blue-500 w-full">
-                    <SelectValue placeholder="Filtre pelo canal" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="telefone">Telefone</SelectItem>
-                    <SelectItem value="whatsapp">WhatsApp</SelectItem>
-                    <SelectItem value="email">E-mail</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
 
         {/* KPI Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2  gap-6 mb-8">
@@ -648,41 +661,153 @@ export function ManagerDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr className="border-b border-blue-100 hover:bg-blue-50/50">
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                          <span className="text-sm font-semibold text-white">
-                            JP
+                  {totalPorVendedor.map((item) => (
+                    <tr className="border-b border-blue-100 hover:bg-blue-50/50">
+                      <td className="py-4 px-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                            <span className="text-sm font-semibold text-white">
+                              JP
+                            </span>
+                          </div>
+                          <span className="font-medium text-blue-900">
+                            {item.vendedor}
                           </span>
                         </div>
-                        <span className="font-medium text-blue-900">
-                          João Pedro
-                        </span>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4 text-blue-800">8.694</td>
-                    <td className="py-4 px-4 text-blue-800">1</td>
-                    <td className="py-4 px-4">
-                      <Badge
-                        variant="secondary"
-                        className="bg-emerald-100 text-emerald-800"
-                      >
-                        0.01%
-                      </Badge>
-                    </td>
-                    <td className="py-4 px-4">
-                      <Badge className="bg-blue-100 text-blue-800 border-blue-200">
-                        #1
-                      </Badge>
-                    </td>
-                  </tr>
+                      </td>
+                      <td className="py-4 px-4 text-blue-800">
+                        {item.totalClientes}
+                      </td>
+                      <td className="py-4 px-4 text-blue-800">
+                        {item.recuperacoes}
+                      </td>
+                      <td className="py-4 px-4">
+                        <Badge
+                          variant="secondary"
+                          className="bg-emerald-100 text-emerald-800"
+                        >
+                          {item.taxaConversao?.toFixed(2)} %
+                        </Badge>
+                      </td>
+                      <td className="py-4 px-4">
+                        <Badge className="bg-blue-100 text-blue-800 border-blue-200">
+                          {item.ranking}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
           </CardContent>
         </Card>
-
+        <Card className="mb-8 shadow-sm border-blue-200 bg-gradient-to-r from-white to-blue-50/30">
+          <CardHeader className="pb-4">
+            <div className="flex items-center gap-2">
+              <Filter className="w-5 h-5 text-blue-600" />
+              <CardTitle className="text-lg text-blue-900">
+                Filtros Avançados
+              </CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              <div>
+                <label className="text-sm font-medium text-blue-800 mb-2 block">
+                  Período
+                </label>
+                <Select
+                  value={filtros.periodo}
+                  onValueChange={(valor) =>
+                    setFiltros((prev) => ({ ...prev, periodo: valor }))
+                  }
+                >
+                  <SelectTrigger className="border-blue-200 focus:border-blue-500 w-full">
+                    <SelectValue placeholder="Filtre pelo período" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos</SelectItem>
+                    <SelectItem value="30d">Últimos 30 dias</SelectItem>
+                    <SelectItem value="90d">Últimos 90 dias</SelectItem>
+                    <SelectItem value="1y">Último ano</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-blue-800 mb-2 block">
+                  Vendedor
+                </label>
+                <Select
+                  value={filtros.vendedor}
+                  onValueChange={(valor) =>
+                    setFiltros((prev) => ({ ...prev, vendedor: valor }))
+                  }
+                >
+                  <SelectTrigger className="border-blue-200 focus:border-blue-500 w-full">
+                    <SelectValue placeholder="Filtre pelo vendedor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos</SelectItem>
+                    {usuarios?.map((usuario) => (
+                      <SelectItem value={usuario}>{usuario}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-blue-800 mb-2 block">
+                  Status
+                </label>
+                <Select
+                  value={filtros.status}
+                  onValueChange={(valor) =>
+                    setFiltros((prev) => ({ ...prev, status: valor }))
+                  }
+                >
+                  <SelectTrigger className="border-blue-200 focus:border-blue-500 w-full">
+                    <SelectValue placeholder="Filtre pelo status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos</SelectItem>
+                    <SelectItem value="recuperado">Recuperado</SelectItem>
+                    <SelectItem value="nao_recuperado">
+                      Não Recuperado
+                    </SelectItem>
+                    <SelectItem value="em_contato">Em Contato</SelectItem>
+                    <SelectItem value=" ">Pendente</SelectItem>
+                    <SelectItem value="sem_resposta">Sem resposta</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-blue-800 mb-2 block">
+                  Canal
+                </label>
+                <Select
+                  value={filtros.canal}
+                  onValueChange={(valor) =>
+                    setFiltros((prev) => ({ ...prev, canal: valor }))
+                  }
+                >
+                  <SelectTrigger className="border-blue-200 focus:border-blue-500 w-full">
+                    <SelectValue placeholder="Filtre pelo canal" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos</SelectItem>
+                    <SelectItem value="telefone">Telefone</SelectItem>
+                    <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Button className="mt-7">
+                  <X />
+                  Limpar Filtros
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
         {/* Client Details */}
         <Card className="shadow-sm border-blue-200 bg-gradient-to-br from-white to-blue-50/30">
           <CardHeader>
@@ -732,6 +857,13 @@ export function ManagerDashboard() {
                   </tr>
                 </thead>
                 <tbody>
+                  {paginatedItems.length === 0 && (
+                    <div className="w-full flex justify-center items-center">
+                      <span className="font-bold">
+                        Nenhum cliente pelo filtro
+                      </span>
+                    </div>
+                  )}
                   {paginatedItems?.map((client, index) => (
                     <tr
                       key={index}
@@ -793,7 +925,7 @@ export function ManagerDashboard() {
               currentPage={currentPage}
               totalPages={totalPages}
               itemsPerPage={itemsPerPage}
-              totalItems={dadosFiltrados?.length ?? 0}
+              totalItems={allClients?.length ?? 0}
               startIndex={startIndex}
               getVisiblePageNumbers={getVisiblePageNumbers}
               goToFirstPage={goToFirstPage}

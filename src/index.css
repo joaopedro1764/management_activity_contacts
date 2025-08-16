@@ -8,6 +8,7 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -41,67 +42,38 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/* Paleta escura (igual ao print, mas com gray no lugar do coral) */
 :root {
   --radius: 0.625rem;
 
-  /* Tema Claro com Azul e Coral */
-  --background: oklch(0.98 0.01 250);              /* Azul bem claro */
-  --foreground: oklch(0.18 0.04 250);              /* Azul escuro */
-  --card: oklch(1 0.005 250);
-  --card-foreground: var(--foreground);
-  --popover: oklch(1 0.003 250);
-  --popover-foreground: var(--foreground);
-  --primary: oklch(0.65 0.22 250);                 /* Azul tipo bg-blue-500 */
-  --primary-foreground: oklch(0.98 0.01 250);
-  --secondary: oklch(0.85 0.10 25);                /* Coral suave */
-  --secondary-foreground: oklch(0.2 0.05 250);
-  --muted: oklch(0.93 0.04 250);
-  --muted-foreground: oklch(0.45 0.06 250);
-  --accent: oklch(0.72 0.18 250);                  /* Azul um pouco mais claro */
-  --accent-foreground: oklch(0.98 0.01 250);
-  --destructive: oklch(0.80 0.12 25);
-  --border: oklch(0.88 0.05 250);
-  --input: oklch(0.90 0.06 250);
-  --ring: var(--primary);
-  --chart-1: var(--primary);
-  --chart-2: var(--secondary);
-  --chart-3: var(--accent);
-  --chart-4: oklch(0.95 0.10 90);                  /* Amarelo pastel */
-  --chart-5: oklch(0.95 0.04 85);                  /* Bege claro */
-  --sidebar: oklch(0.95 0.02 250);
-  --sidebar-foreground: var(--foreground);
-  --sidebar-primary: var(--primary);
-  --sidebar-primary-foreground: var(--primary-foreground);
-  --sidebar-accent: var(--accent);
-  --sidebar-accent-foreground: var(--accent-foreground);
-  --sidebar-border: var(--border);
-  --sidebar-ring: var(--ring);
-}
-
-.dark {
-  --background: oklch(0.10 0.02 250);              /* Azul bem escuro */
-  --foreground: oklch(0.95 0.03 25);               /* Coral claro */
-  --card: oklch(0.18 0.04 250);
+  --background: oklch(0.10 0.02 250);        /* Fundo azul bem escuro */
+  --foreground: oklch(0.95 0.01 250);        /* Texto cinza-claro */
+  --card: oklch(0.18 0.04 250);              /* Card mais claro que o fundo */
   --card-foreground: var(--foreground);
   --popover: oklch(0.15 0.03 250);
   --popover-foreground: var(--foreground);
-  --primary: oklch(0.72 0.22 250);                 /* Azul vibrante escuro */
+  --primary: oklch(0.72 0.22 250);           /* Azul vibrante (botões/links) */
   --primary-foreground: oklch(0.10 0.02 250);
-  --secondary: oklch(0.75 0.14 25);                /* Coral mais vivo */
-  --secondary-foreground: oklch(0.10 0.02 250);
-  --muted: oklch(0.20 0.05 250);
-  --muted-foreground: oklch(0.75 0.10 25);
+
+  /* Cinza suave no lugar do coral */
+  --secondary: oklch(0.95 0.02 250);         /* Aproxima gray-100 */
+  --secondary-foreground: oklch(0.20 0.02 250);
+
+  --muted: oklch(0.20 0.03 250);
+  --muted-foreground: oklch(0.80 0.02 250);
   --accent: oklch(0.72 0.18 250);
   --accent-foreground: oklch(0.98 0.01 250);
-  --destructive: oklch(0.80 0.12 25);
+  --destructive: oklch(0.60 0.05 25);        /* Vermelho mais discreto */
   --border: oklch(0.30 0.07 250 / 70%);
   --input: oklch(0.30 0.07 250 / 90%);
   --ring: var(--primary);
+
   --chart-1: var(--primary);
   --chart-2: var(--secondary);
   --chart-3: var(--accent);
   --chart-4: oklch(0.90 0.10 90);
   --chart-5: oklch(0.95 0.04 85);
+
   --sidebar: oklch(0.12 0.03 250);
   --sidebar-foreground: var(--foreground);
   --sidebar-primary: var(--primary);
