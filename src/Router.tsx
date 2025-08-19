@@ -1,11 +1,11 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { Login } from "./pages/Login";
 import { DefaultLayout } from "./pages/DefaultLayout";
-import { ManagerDashboard } from "./pages/Dashboard/ManagerDashboard";
+import { ManagerDashboard } from "./pages/Dashboard";
 import { ListCustomer } from "./pages/ListCustomers";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import type { JSX } from "react";
-import { SalesManagement } from "./pages/clients";
+import { SalesManagement } from "./pages/LeadClients";
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const routes = [
@@ -18,7 +18,6 @@ export const routes = [
     path: "/listaClientes/:id_cliente",
     element: <SalesManagement />,
   },
-  { path: "/dashboard", element: <ManagerDashboard />, requireAdmin: true },
 ];
 
 interface PrivateRouteProps {
@@ -37,7 +36,7 @@ export function AdminRoute({ children }: { children: JSX.Element }) {
   const { user, isAuthenticated } = useAuth();
 
   if (!isAuthenticated || user?.tipo !== "admin") {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/listaClientes" />;
   }
 
   return children;
@@ -56,6 +55,7 @@ export function Router() {
               element={<PrivateRoute>{route.element}</PrivateRoute>}
             />
           ))}
+          <Route path="/dashboard" element={<AdminRoute><ManagerDashboard /></AdminRoute>} />
         </Route>
         <Route path="*" element={<div>404</div>} />
       </Routes>
