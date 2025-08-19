@@ -1,11 +1,11 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { Login } from "./pages/Login";
 import { DefaultLayout } from "./pages/DefaultLayout";
-import { SalesManagement } from "./pages/Clients";
 import { ManagerDashboard } from "./pages/Dashboard/ManagerDashboard";
 import { ListCustomer } from "./pages/ListCustomers";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import type { JSX } from "react";
+import { SalesManagement } from "./pages/clients";
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const routes = [
@@ -37,7 +37,7 @@ export function AdminRoute({ children }: { children: JSX.Element }) {
   const { user, isAuthenticated } = useAuth();
 
   if (!isAuthenticated || user?.tipo !== "admin") {
-    return <Navigate to="/listaClientes" replace />;
+    return <Navigate to="/" replace />;
   }
 
   return children;

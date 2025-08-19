@@ -60,8 +60,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       } else {
         toast.error("Email ou senha inválidos");
       }
-    } catch (error: any) {
-      toast.error("Erro no login: " + error?.message || error);
+    } catch (error:any) {
+      if(error.response.status === 401){
+        toast.error("E-mail e/ou senha incorreto!")
+      }
+     /*  toast.error("Erro no login: " + error?.message || error); */
     }
   }
 

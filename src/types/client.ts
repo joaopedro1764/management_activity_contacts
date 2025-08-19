@@ -2,8 +2,8 @@ import { z } from "zod";
 export interface ClienteRecuperadoAtivo {
   id_cliente: string;
   id_contrato: string;
-  data_ativacao: string; // ou Date, se você estiver tratando como objeto Date
-  data_cancelamento: string; // ou Date
+  data_ativacao: string; 
+  data_cancelamento: string;
   obs_cancelamento: string;
   meses_ativo: string;
   valor_aberto_total: number;

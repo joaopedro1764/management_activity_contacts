@@ -82,8 +82,6 @@ export function ListCustomer() {
     return client.vendedor_responsavel === user.nome;
   });
 
-  console.log(clientFilterByWinner);
-
   const filters = {
     statusFilter: searchParams.get("statusFilter")?.toLowerCase().trim(),
     idClientOrNameClient: searchParams
@@ -153,6 +151,9 @@ export function ListCustomer() {
       const sem_reposta = clientFilterByWinner?.filter(
         (c) => c.etapa_contato === "sem_resposta"
       ).length;
+      const nao_recuperado = clientFilterByWinner?.filter(
+        (c) => c.etapa_contato === "nao_recuperado"
+      ).length;
       const taxaRecuperacao =
         total > 0 ? Math.round((recuperados / total) * 100) : 0;
 
@@ -162,6 +163,7 @@ export function ListCustomer() {
         em_contato,
         sem_reposta,
         taxaRecuperacao,
+        nao_recuperado
       };
     }
   }, [clientFilterByWinner]);
@@ -186,7 +188,7 @@ export function ListCustomer() {
         </div>
 
         {/* Cards de Métricas */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 p-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-8 p-6">
           <div className="bg-white border-blue-400 border-2 rounded-lg">
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
@@ -261,14 +263,14 @@ export function ListCustomer() {
               </div>
             </div>
           </div>
-          <div className="bg-white border-red-400 border-2 rounded-lg">
+          <div className="bg-white border-orange-400 border-2 rounded-lg">
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center space-x-3">
-                  <div className="p-2 rounded-lg bg-red-500 text-white">
+                  <div className="p-2 rounded-lg bg-orange-500 text-white">
                     <PhoneOff className="w-5 h-5" />
                   </div>
-                  <h3 className="text-sm font-semibold text-red-500 uppercase tracking-wide">
+                  <h3 className="text-sm font-semibold text-orange-500 uppercase tracking-wide">
                     Sem reposta
                   </h3>
                 </div>
@@ -278,8 +280,33 @@ export function ListCustomer() {
                   <span className="text-5xl font-bold text-gray-900">
                     {metrics?.sem_reposta}
                   </span>
-                  <span className="text-xl text-red-500 font-medium">
+                  <span className="text-xl text-orange-500 font-medium">
                     clientes sem resposta
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+           <div className="bg-white border-red-400 border-2 rounded-lg">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 rounded-lg bg-red-500 text-white">
+                    <PhoneOff className="w-5 h-5" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-red-500 uppercase tracking-wide">
+                    Clientes não recuperados
+                  </h3>
+                </div>
+              </div>
+              <div className="mb-4">
+                <div className="flex flex-col items-baseline space-x-2">
+                  <span className="text-5xl font-bold text-gray-900">
+                    {metrics?.nao_recuperado}
+                  </span>
+                  <span className="text-xl text-red-500 font-medium">
+                    clientes não recuperado
                   </span>
                 </div>
               </div>

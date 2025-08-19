@@ -142,10 +142,9 @@ export function SalesManagement() {
 
   if (isLoading) {
     return (
-      <button type="button" className="bg-indigo-500 ..." disabled>
-        <svg className="mr-3 size-5 animate-spin ..." viewBox="0 0 24 24"></svg>
+      <p>
         Carregando...
-      </button>
+      </p>
     );
   }
 
@@ -1137,7 +1136,7 @@ export function SalesManagement() {
             <CardContent className="pt-6">
               {nextClient ? (
                 <div className="space-y-8">
-                  <h3 className="text-xl font-medium text-slate-600">
+                  <h3 className="text-xl font-medium text-black">
                     <strong>N-Recupera+</strong> | Plataforma de recuperação de
                     clientes cancelados
                   </h3>
