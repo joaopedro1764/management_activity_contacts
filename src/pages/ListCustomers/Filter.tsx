@@ -15,7 +15,7 @@ import type z from "zod";
 
 export type ClienteSearchProps = z.infer<typeof ClientSearchProps>;
 
-export const ClientListFilter = () => {
+export const FilterClient = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const statusFilter = searchParams.get("statusFilter");
   const idClientOrNameClient = searchParams.get("idClientOrNameClient");
@@ -84,16 +84,7 @@ export const ClientListFilter = () => {
           </Select>
         )}
       />
-      <Button type="submit" className="w-full md:w-auto">
-        <Search className="w-5 h-5" />
-      </Button>
-      <Button
-        onClick={handleClearAllFilters}
-        type="button"
-        className="w-full md:w-auto bg-gray-500 hover:bg-gray-400"
-      >
-        <X className="w-5 h-5" />
-      </Button>
+    
     </form>
   );
 };

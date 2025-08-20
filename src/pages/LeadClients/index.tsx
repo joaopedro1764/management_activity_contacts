@@ -88,7 +88,7 @@ export function SalesManagement() {
       setSelectedClient(client);
       setContatoFeito(
         client.etapa_contato === "em_contato" ||
-          client.etapa_contato === "nao_atendeu"
+        client.etapa_contato === "nao_atendeu"
       );
       setRespondido(client.etapa_contato === "sem_resposta");
       setRecuperado(client.etapa_contato === "recuperado");
@@ -228,7 +228,7 @@ export function SalesManagement() {
     }
   }
 
-  const handleBackToDashboard = () => {
+  const handleBack = () => {
     navigate("/listaClientes");
 
     setSelectedClient(null);
@@ -242,14 +242,14 @@ export function SalesManagement() {
         return !contatoFeito
           ? "disabled"
           : respondido
-          ? "completed"
-          : "current";
+            ? "completed"
+            : "current";
       case 3:
         return !respondido
           ? "disabled"
           : canalDeContato
-          ? "completed"
-          : "current";
+            ? "completed"
+            : "current";
       case 4:
         return !respondido ? "disabled" : recuperado ? "completed" : "current";
       default:
@@ -282,9 +282,8 @@ export function SalesManagement() {
           )}
         </div>
         <span
-          className={`text-sm font-medium ${
-            status === "disabled" ? "text-gray-400" : "text-gray-700"
-          }`}
+          className={`text-sm font-medium ${status === "disabled" ? "text-gray-400" : "text-gray-700"
+            }`}
         >
           {title}
         </span>
@@ -315,34 +314,67 @@ export function SalesManagement() {
 
   if (intervalDateFromCancelation.years) {
     parts.push(
-      `${intervalDateFromCancelation.years} ${
-        intervalDateFromCancelation.years === 1 ? "ano" : "anos"
+      `${intervalDateFromCancelation.years} ${intervalDateFromCancelation.years === 1 ? "ano" : "anos"
       }`
     );
   }
   if (intervalDateFromCancelation.months) {
     parts.push(
-      `${intervalDateFromCancelation.months} ${
-        intervalDateFromCancelation.months === 1 ? "mês" : "meses"
+      `${intervalDateFromCancelation.months} ${intervalDateFromCancelation.months === 1 ? "mês" : "meses"
       }`
     );
   }
   if (intervalDateFromCancelation.days) {
     parts.push(
-      `${intervalDateFromCancelation.days} ${
-        intervalDateFromCancelation.days === 1 ? "dia" : "dias"
+      `${intervalDateFromCancelation.days} ${intervalDateFromCancelation.days === 1 ? "dia" : "dias"
       }`
     );
   }
 
   function copyText(text: string) {
-    try {
-      navigator.clipboard.writeText(text);
-      toast.success("Copiado com sucesso!");
-    } catch (err) {
-      toast.error("Erro ao copiar texto: " + err);
+    if (!text) return;
+
+    // Caso o navegador suporte a API moderna
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard
+        .writeText(text)
+        .then(() => {
+          toast.success("Copiado com sucesso!");
+        })
+        .catch((err) => {
+          console.error("Erro ao copiar:", err);
+          toast.error("Erro ao copiar!");
+        });
+    } else {
+      // Fallback para navegadores antigos ou sem HTTPS
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+
+      // Evita o scroll na página
+      textArea.style.position = "fixed";
+      textArea.style.left = "-9999px";
+
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+
+      try {
+        const sucesso = document.execCommand("copy");
+        if (sucesso) {
+          toast.success("Copiado com sucesso!");
+        } else {
+          toast.error("Erro ao copiar!");
+        }
+      } catch (err) {
+        console.error("Erro ao copiar (fallback):", err);
+        toast.error("Erro ao copiar!");
+      }
+
+      document.body.removeChild(textArea);
     }
   }
+
+
 
   if (selectedClient) {
     return (
@@ -352,7 +384,7 @@ export function SalesManagement() {
           <div className="flex items-center gap-4">
             <Button
               variant="outline"
-              onClick={handleBackToDashboard}
+              onClick={handleBack}
               className="flex items-center gap-2 bg-white hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 border-blue-300 text-blue-700 hover:text-blue-800 transition-all duration-300"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -367,7 +399,7 @@ export function SalesManagement() {
               </p>
             </div>
           </div>
-
+ 
           {/* Card de informações do cliente */}
           <div className="w-full border-2 border-blue-300 shadow-lg bg-white rounded-lg">
             {/* Header compacto */}
@@ -390,7 +422,7 @@ export function SalesManagement() {
                 </div>
                 <button
                   title="Copiar ID do Cliente"
-                  onClick={() => copyText(selectedClient.id_cliente)}
+                  onClick={() => copyText(selectedClient?.id_cliente)}
                   className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200"
                 >
                   <Copy className="w-5 h-5" />
@@ -648,11 +680,10 @@ export function SalesManagement() {
                             setDeveFecharContato(false);
                           }
                         }}
-                        className={`w-full flex items-center gap-2 transition-all duration-300 ${
-                          contatoFeito
-                            ? "bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 shadow-lg shadow-emerald-200 text-white"
-                            : "hover:bg-green-600"
-                        }`}
+                        className={`w-full flex items-center gap-2 transition-all duration-300 ${contatoFeito
+                          ? "bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 shadow-lg shadow-emerald-200 text-white"
+                          : "hover:bg-green-600"
+                          }`}
                       >
                         <CheckCircle className="h-4 w-4" />
                         Sim, fiz contato
@@ -668,11 +699,10 @@ export function SalesManagement() {
                           setTipoDeRecuperacao({ id: "", status: "" });
                           setDeveFecharContato(false);
                         }}
-                        className={`w-full flex items-center gap-2 transition-all duration-300 ${
-                          !contatoFeito
-                            ? "bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 shadow-lg shadow-red-200 text-white"
-                            : "hover:bg-red-600"
-                        }`}
+                        className={`w-full flex items-center gap-2 transition-all duration-300 ${!contatoFeito
+                          ? "bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 shadow-lg shadow-red-200 text-white"
+                          : "hover:bg-red-600"
+                          }`}
                       >
                         <XCircle className="h-4 w-4" />
                         Ainda não tentei
@@ -682,16 +712,14 @@ export function SalesManagement() {
 
                   {/* Step 2: Cliente Atendeu */}
                   <div
-                    className={`space-y-4 p-4 rounded-lg border shadow-md hover:shadow-lg transition-all duration-300 ${
-                      contatoFeito
-                        ? "bg-gradient-to-br from-cyan-50 to-blue-100 border-cyan-200"
-                        : "bg-gradient-to-br from-slate-100 to-slate-200 border-slate-300"
-                    }`}
+                    className={`space-y-4 p-4 rounded-lg border shadow-md hover:shadow-lg transition-all duration-300 ${contatoFeito
+                      ? "bg-gradient-to-br from-cyan-50 to-blue-100 border-cyan-200"
+                      : "bg-gradient-to-br from-slate-100 to-slate-200 border-slate-300"
+                      }`}
                   >
                     <h3
-                      className={`font-semibold ${
-                        contatoFeito ? "text-cyan-800" : "text-slate-500"
-                      }`}
+                      className={`font-semibold ${contatoFeito ? "text-cyan-800" : "text-slate-500"
+                        }`}
                     >
                       2. Resposta do Cliente
                     </h3>
@@ -716,11 +744,10 @@ export function SalesManagement() {
                                 });
                               }
                             }}
-                            className={`w-full flex items-center gap-2 transition-all duration-300 ${
-                              respondido
-                                ? "bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 shadow-lg shadow-emerald-200 text-white"
-                                : "hover:bg-green-600"
-                            }`}
+                            className={`w-full flex items-center gap-2 transition-all duration-300 ${respondido
+                              ? "bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 shadow-lg shadow-emerald-200 text-white"
+                              : "hover:bg-green-600"
+                              }`}
                           >
                             <CheckCircle className="h-4 w-4" />
                             Sim, me atendeu
@@ -733,11 +760,10 @@ export function SalesManagement() {
                               setCanalDeContato("");
                               setRecuperado(false);
                             }}
-                            className={`w-full flex items-center gap-2 transition-all duration-300 ${
-                              !respondido
-                                ? "bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 shadow-lg shadow-red-200 text-white"
-                                : "hover:bg-red-700"
-                            }`}
+                            className={`w-full flex items-center gap-2 transition-all duration-300 ${!respondido
+                              ? "bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 shadow-lg shadow-red-200 text-white"
+                              : "hover:bg-red-700"
+                              }`}
                           >
                             <XCircle className="h-4 w-4" />
                             Não atendeu
@@ -760,11 +786,10 @@ export function SalesManagement() {
                                 }
                                 size="sm"
                                 onClick={() => setDeveFecharContato(true)}
-                                className={`w-full text-xs transition-all duration-300 ${
-                                  deveFecharContato
-                                    ? "bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 text-white shadow-lg shadow-red-200"
-                                    : "hover:bg-red-700"
-                                }`}
+                                className={`w-full text-xs transition-all duration-300 ${deveFecharContato
+                                  ? "bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 text-white shadow-lg shadow-red-200"
+                                  : "hover:bg-red-700"
+                                  }`}
                               >
                                 Encerrar Contato
                               </Button>
@@ -774,11 +799,10 @@ export function SalesManagement() {
                                 }
                                 size="sm"
                                 onClick={() => setDeveFecharContato(false)}
-                                className={`w-full text-xs transition-all duration-300 ${
-                                  !deveFecharContato
-                                    ? "bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 text-white shadow-lg shadow-emerald-200"
-                                    : "hover:bg-green-600"
-                                }`}
+                                className={`w-full text-xs transition-all duration-300 ${!deveFecharContato
+                                  ? "bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 text-white shadow-lg shadow-emerald-200"
+                                  : "hover:bg-green-600"
+                                  }`}
                               >
                                 Manter tentativas
                               </Button>
@@ -806,18 +830,16 @@ export function SalesManagement() {
 
                   {/* Step 3: Canal de Atendimento */}
                   <div
-                    className={`space-y-4 p-4 rounded-lg border shadow-md hover:shadow-lg transition-all duration-300 ${
-                      contatoFeito && respondido
-                        ? "bg-gradient-to-br from-indigo-50 to-blue-100 border-indigo-200"
-                        : "bg-gradient-to-br from-slate-100 to-slate-200 border-slate-300"
-                    }`}
+                    className={`space-y-4 p-4 rounded-lg border shadow-md hover:shadow-lg transition-all duration-300 ${contatoFeito && respondido
+                      ? "bg-gradient-to-br from-indigo-50 to-blue-100 border-indigo-200"
+                      : "bg-gradient-to-br from-slate-100 to-slate-200 border-slate-300"
+                      }`}
                   >
                     <h3
-                      className={`font-semibold ${
-                        contatoFeito && respondido
-                          ? "text-indigo-800"
-                          : "text-slate-500"
-                      }`}
+                      className={`font-semibold ${contatoFeito && respondido
+                        ? "text-indigo-800"
+                        : "text-slate-500"
+                        }`}
                     >
                       3. Canal de Comunicação
                     </h3>
@@ -835,11 +857,10 @@ export function SalesManagement() {
                             }
                             size="sm"
                             onClick={() => setCanalDeContato("whatsapp")}
-                            className={`w-full flex items-center gap-2 transition-all duration-300 ${
-                              canalDeContato === "whatsapp"
-                                ? "bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 shadow-lg shadow-blue-200 text-white"
-                                : "hover:bg-blue-700"
-                            }`}
+                            className={`w-full flex items-center gap-2 transition-all duration-300 ${canalDeContato === "whatsapp"
+                              ? "bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 shadow-lg shadow-blue-200 text-white"
+                              : "hover:bg-blue-700"
+                              }`}
                           >
                             <MessageCircle className="h-4 w-4" />
                             WhatsApp
@@ -852,11 +873,10 @@ export function SalesManagement() {
                             }
                             size="sm"
                             onClick={() => setCanalDeContato("telefone")}
-                            className={`w-full flex items-center gap-2 transition-all duration-300 ${
-                              canalDeContato === "telefone"
-                                ? "bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 shadow-lg shadow-blue-200 text-white"
-                                : "hover:bg-blue-700"
-                            }`}
+                            className={`w-full flex items-center gap-2 transition-all duration-300 ${canalDeContato === "telefone"
+                              ? "bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 shadow-lg shadow-blue-200 text-white"
+                              : "hover:bg-blue-700"
+                              }`}
                           >
                             <Phone className="h-4 w-4" />
                             Ligação
@@ -878,18 +898,16 @@ export function SalesManagement() {
 
                   {/* Step 4: Cliente Recuperado */}
                   <div
-                    className={`space-y-4 p-4 rounded-lg border shadow-md hover:shadow-lg transition-all duration-300 ${
-                      contatoFeito && respondido && canalDeContato
-                        ? "bg-gradient-to-br from-teal-50 to-emerald-100 border-teal-200"
-                        : "bg-gradient-to-br from-slate-100 to-slate-200 border-slate-300"
-                    }`}
+                    className={`space-y-4 p-4 rounded-lg border shadow-md hover:shadow-lg transition-all duration-300 ${contatoFeito && respondido && canalDeContato
+                      ? "bg-gradient-to-br from-teal-50 to-emerald-100 border-teal-200"
+                      : "bg-gradient-to-br from-slate-100 to-slate-200 border-slate-300"
+                      }`}
                   >
                     <h3
-                      className={`font-semibold ${
-                        contatoFeito && respondido && canalDeContato
-                          ? "text-teal-800"
-                          : "text-slate-500"
-                      }`}
+                      className={`font-semibold ${contatoFeito && respondido && canalDeContato
+                        ? "text-teal-800"
+                        : "text-slate-500"
+                        }`}
                     >
                       4. Resultado Final
                     </h3>
@@ -903,11 +921,10 @@ export function SalesManagement() {
                             variant={recuperado ? "default" : "outline"}
                             size="sm"
                             onClick={() => setRecuperado(true)}
-                            className={`w-full flex items-center gap-2 transition-all duration-300 ${
-                              recuperado
-                                ? "bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 shadow-lg shadow-emerald-200 text-white"
-                                : "hover:bg-green-600"
-                            }`}
+                            className={`w-full flex items-center gap-2 transition-all duration-300 ${recuperado
+                              ? "bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 shadow-lg shadow-emerald-200 text-white"
+                              : "hover:bg-green-600"
+                              }`}
                           >
                             <CheckCircle className="h-4 w-4" />
                             Sim, recuperei!
@@ -916,11 +933,10 @@ export function SalesManagement() {
                             variant={!recuperado ? "default" : "outline"}
                             size="sm"
                             onClick={() => setRecuperado(false)}
-                            className={`w-full flex items-center gap-2 transition-all duration-300 ${
-                              !recuperado
-                                ? "bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 shadow-lg shadow-red-200 text-white"
-                                : "hover:bg-red-600"
-                            }`}
+                            className={`w-full flex items-center gap-2 transition-all duration-300 ${!recuperado
+                              ? "bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 shadow-lg shadow-red-200 text-white"
+                              : "hover:bg-red-600"
+                              }`}
                           >
                             <XCircle className="h-4 w-4" />
                             Não consegui
@@ -944,80 +960,76 @@ export function SalesManagement() {
                     contatoFeito &&
                     respondido &&
                     canalDeContato)) && (
-                  <div className="mt-8 space-y-4">
-                    <div
-                      className={`p-4 rounded-lg border-2 ${
-                        recuperado
+                    <div className="mt-8 space-y-4">
+                      <div
+                        className={`p-4 rounded-lg border-2 ${recuperado
                           ? "bg-green-50 border-green-200"
                           : "bg-red-50 border-red-200"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 mb-4">
-                        {recuperado ? (
-                          <>
-                            <CheckCircle className="h-5 w-5 text-green-600" />
-                            <h4 className="text-sm font-semibold text-green-800">
-                              Parabéns! Cliente recuperado com sucesso
-                            </h4>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="h-5 w-5 text-red-600" />
-                            <h4 className="text-sm font-semibold text-red-800">
-                              Cliente não foi recuperado
-                            </h4>
-                          </>
-                        )}
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <label
-                            className={`text-sm font-medium ${
-                              recuperado ? "text-green-700" : "text-red-700"
-                            }`}
-                          >
-                            {recuperado
-                              ? "Tipo de recuperação:"
-                              : "Motivo da não recuperação:"}
-                          </label>
-                          <SelectRecuperacao
-                            options={options}
-                            value={tipoDeRecuperacao}
-                            setValue={setTipoDeRecuperacao}
-                            placeholder="Selecione o motivo"
-                            recuperado={recuperado}
-                          />
+                          }`}
+                      >
+                        <div className="flex items-center gap-2 mb-4">
+                          {recuperado ? (
+                            <>
+                              <CheckCircle className="h-5 w-5 text-green-600" />
+                              <h4 className="text-sm font-semibold text-green-800">
+                                Parabéns! Cliente recuperado com sucesso
+                              </h4>
+                            </>
+                          ) : (
+                            <>
+                              <XCircle className="h-5 w-5 text-red-600" />
+                              <h4 className="text-sm font-semibold text-red-800">
+                                Cliente não foi recuperado
+                              </h4>
+                            </>
+                          )}
                         </div>
 
-                        <div className="space-y-2">
-                          <label
-                            className={`text-sm font-medium ${
-                              recuperado ? "text-green-700" : "text-red-700"
-                            }`}
-                          >
-                            Observações adicionais:
-                          </label>
-                          <textarea
-                            value={descricaoAtendente}
-                            onChange={(e) =>
-                              setDescricaoAtendente(e.target.value)
-                            }
-                            className={`w-full min-h-[100px] p-3 bg-white border rounded-md text-sm text-gray-900 
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <label
+                              className={`text-sm font-medium ${recuperado ? "text-green-700" : "text-red-700"
+                                }`}
+                            >
+                              {recuperado
+                                ? "Tipo de recuperação:"
+                                : "Motivo da não recuperação:"}
+                            </label>
+                            <SelectRecuperacao
+                              options={options}
+                              value={tipoDeRecuperacao}
+                              setValue={setTipoDeRecuperacao}
+                              placeholder="Selecione o motivo"
+                              recuperado={recuperado}
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <label
+                              className={`text-sm font-medium ${recuperado ? "text-green-700" : "text-red-700"
+                                }`}
+                            >
+                              Observações adicionais:
+                            </label>
+                            <textarea
+                              value={descricaoAtendente}
+                              onChange={(e) =>
+                                setDescricaoAtendente(e.target.value)
+                              }
+                              className={`w-full min-h-[100px] p-3 bg-white border rounded-md text-sm text-gray-900 
                             focus:outline-none focus:ring-2 hover:border-opacity-80 transition-colors duration-200 resize-none shadow-sm
-                            ${
-                              recuperado
-                                ? "border-green-300 placeholder-green-400 focus:ring-green-500 focus:border-green-500 hover:border-green-400"
-                                : "border-red-300 placeholder-red-400 focus:ring-red-500 focus:border-red-500 hover:border-red-400"
-                            }`}
-                            placeholder="Descreva detalhes sobre a tentativa de recuperação..."
-                            rows={4}
-                          />
+                            ${recuperado
+                                  ? "border-green-300 placeholder-green-400 focus:ring-green-500 focus:border-green-500 hover:border-green-400"
+                                  : "border-red-300 placeholder-red-400 focus:ring-red-500 focus:border-red-500 hover:border-red-400"
+                                }`}
+                              placeholder="Descreva detalhes sobre a tentativa de recuperação..."
+                              rows={4}
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
               </CardContent>
             </Card>
 
