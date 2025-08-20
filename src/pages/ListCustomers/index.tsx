@@ -1,7 +1,6 @@
 import { useState, useMemo } from "react";
 import {
   Filter,
-  MoreHorizontal,
   PhoneCall,
   Edit,
   BarChart3,
@@ -10,7 +9,6 @@ import {
   UserX,
   Clock,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -21,12 +19,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Pagination } from "@/components/pagination";
 import { useCliente } from "@/api/api";
 import { useAuth } from "@/context/AuthContext";
@@ -41,15 +33,15 @@ function getScoreBadgeColor(score: number) {
   return "bg-gradient-to-r from-red-500 to-rose-500 text-white";
 }
 
-  const getContactStatusColor = (status: string) => {
-    const colors = {
-      recuperado: "bg-green-100 text-green-800 border-green-200",
-      em_contato: "bg-blue-100 text-blue-800 border-blue-200",
-      sem_resposta: "bg-gray-100 text-gray-800 border-gray-200",
-      nao_recuperado: "bg-red-100 text-red-800 border-red-200",
-    }
-    return colors[status as keyof typeof colors] || "bg-gray-100 text-gray-800"
+const getContactStatusColor = (status: string) => {
+  const colors = {
+    recuperado: "bg-green-100 text-green-800 border-green-200",
+    em_contato: "bg-blue-100 text-blue-800 border-blue-200",
+    sem_resposta: "bg-gray-100 text-gray-800 border-gray-200",
+    nao_recuperado: "bg-red-100 text-red-800 border-red-200",
   }
+  return colors[status as keyof typeof colors] || "bg-gray-100 text-gray-800"
+}
 
 function getContactStatusLabel(status: string) {
   switch (status) {
@@ -98,7 +90,10 @@ export function ListCustomer() {
       ? id_cliente.includes(idOrName) || razao.includes(idOrName)
       : true;
 
-    const matchStatus = status ? etapa_contato.includes(status) : true;
+    const matchStatus = status
+      ? etapa_contato.toLowerCase() === status.toLowerCase()
+      : true;
+
 
     return matchIdOrName && matchStatus;
   });
@@ -169,10 +164,10 @@ export function ListCustomer() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-slate-50 to-blue-50 p-4">
+    <div className="min-h-screen w-full bg-gradient-to-br from-slate-50 to-blue-50">
       <div className="space-y-6">
         {/* Header */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-blue-500 to-blue-700 p-8 text-white shadow-2xl">
+        <div className="relative overflow-hidden rounded-b-sm bg-gradient-to-r from-blue-600 via-blue-500 to-blue-700 p-8 text-white shadow-2xl">
           <div className="absolute inset-0 bg-black/10"></div>
           <div className="relative z-10 max-w-4xl">
             <div className="flex items-center gap-3 mb-4">
@@ -284,11 +279,11 @@ export function ListCustomer() {
           </Card>
         </div>
 
-        <Card className="border-0 shadow-xl bg-gradient-to-br from-white to-slate-50">
+        <Card className="border-0 shadow-xl bg-gradient-to-br from-white to-slate-50 m-6">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-slate-800">
-              <Filter className="h-5 w-5 text-blue-600" />
-              Lista de Clientes
+            <CardTitle className="flex items-center gap-2 text-slate-800 font-medium">
+              <Filter className="h-5 w-5 text-blue-500" />
+              Lista de clientes aceitos
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -297,14 +292,14 @@ export function ListCustomer() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/30 hover:bg-muted/50 border-b border-border/50">
-                    <TableHead className="font-semibold text-foreground">ID Cliente</TableHead>
+                    <TableHead className="font-semibold text-foreground">ID cliente</TableHead>
                     <TableHead className="font-semibold text-foreground">Nome</TableHead>
                     <TableHead className="font-semibold text-foreground">Score</TableHead>
-                    <TableHead className="font-semibold text-foreground">Motivo Cancelamento</TableHead>
-                    <TableHead className="font-semibold text-foreground">Status Contato</TableHead>
+                    <TableHead className="font-semibold text-foreground">Motivo cancelamento</TableHead>
+                    <TableHead className="font-semibold text-foreground">Status contato</TableHead>
                     <TableHead className="font-semibold text-foreground">Contato</TableHead>
-                    <TableHead className="font-semibold text-foreground">Data Contato</TableHead>
-                    <TableHead className="text-right font-semibold text-foreground">Ações</TableHead>
+                    <TableHead className="font-semibold text-foreground">Data contato aceito</TableHead>
+                    <TableHead className="text-right font-semibold text-foreground">Editar</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -359,29 +354,13 @@ export function ListCustomer() {
                           {cliente.data_contato_aceito}
                         </TableCell>
                         <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 w-8 p-0 hover:bg-muted"
-                                disabled={
-                                  cliente.etapa_contato === "recuperado" || cliente.etapa_contato === "sem_resposta"
-                                }
-                              >
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48">
-                              <DropdownMenuItem
-                                className="cursor-pointer"
-                                onClick={() => handleViewClient(cliente.id_cliente)}
-                              >
-                                <Edit className="mr-2 h-4 w-4" />
-                                Editar Cliente
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                          <button
+                            className="cursor-pointer"
+                            onClick={() => handleViewClient(cliente.id_cliente)}
+                          >
+                            <Edit className="mr-2 h-4 w-4 text-blue-500" />
+                           
+                          </button>
                         </TableCell>
                       </TableRow>
                     ))

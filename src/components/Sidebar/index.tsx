@@ -11,6 +11,13 @@ import { Link, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 
+  export function getInitials(nome: string) {
+    const partes = nome.trim().split(" ");
+    const primeiraInicial = partes[0]?.[0] || "";
+    const segundaInicial = partes[1]?.[0] || "";
+    return (primeiraInicial + segundaInicial).toUpperCase();
+  }
+
 function useIsMobile(breakpoint = 768) {
   const [isMobile, setIsMobile] = useState(
     typeof window !== "undefined" ? window.innerWidth < breakpoint : false
@@ -51,7 +58,7 @@ const menuItems = [
     name: "Dashboard",
     link: "/dashboard",
     icon: LayoutDashboard,
-    description: "Visão geral",
+    description: "Visão geral dos dados",
   },
 ];
 
@@ -72,12 +79,7 @@ export function Sidebar({
     if (isMobile) handleOpenAndCloseSidebar();
   };
 
-  function getInitials(nome: string) {
-    const partes = nome.trim().split(" ");
-    const primeiraInicial = partes[0]?.[0] || "";
-    const segundaInicial = partes[1]?.[0] || "";
-    return (primeiraInicial + segundaInicial).toUpperCase();
-  }
+
 
   // Mobile Header Component
   const MobileHeader = () => (

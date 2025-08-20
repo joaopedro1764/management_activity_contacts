@@ -26,12 +26,14 @@ import {
   AlertCircle,
   Target,
   X,
+  BarChart3,
 } from "lucide-react";
 import { arrayStatusOrdemDesejada, type KPIData } from "@/types/client";
 import { Pagination } from "@/components/pagination";
 import { useCliente, useUsers } from "@/api/api";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
+import { getInitials } from "@/components/Sidebar";
 
 function getStatusLabel(status: string) {
   if (status === "em_contato") {
@@ -94,7 +96,7 @@ export function ManagerDashboard() {
         ok =
           ok &&
           item.vendedor_responsavel?.toLowerCase() ===
-            filtros.vendedor.toLowerCase();
+          filtros.vendedor.toLowerCase();
       }
 
       // Status
@@ -366,20 +368,21 @@ export function ManagerDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-slate-100">
-      {/* Header */}
-      <div className="bg-blue-500 shadow-lg rounded-b">
-        <div className="px-6 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-white">
-                Dashboard Gerencial
-              </h1>
-              <p className="text-blue-100 mt-1">
-                Análise completa de recuperação de clientes
-              </p>
+      <div className="relative overflow-hidden rounded-b-sm bg-gradient-to-r from-blue-600 via-blue-500 to-blue-700 p-8 text-white shadow-2xl">
+        <div className="absolute inset-0 bg-black/10"></div>
+        <div className="relative z-10 max-w-4xl">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 rounded-lg bg-white/20 backdrop-blur-sm">
+              <BarChart3 className="h-6 w-6" />
             </div>
+            <h1 className="text-4xl font-bold">Dashboard Gerencial</h1>
           </div>
+          <p className="text-lg text-white/90 max-w-2xl">
+            Gerencie os clientes e acompanhe a recuperação com insights em tempo real
+          </p>
         </div>
+        <div className="absolute -right-20 -top-20 h-40 w-40 rounded-full bg-white/10 blur-3xl"></div>
+        <div className="absolute -left-10 -bottom-10 h-32 w-32 rounded-full bg-white/5 blur-2xl"></div>
       </div>
 
       <div className="px-6 py-8">
@@ -667,7 +670,7 @@ export function ManagerDashboard() {
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
                             <span className="text-sm font-semibold text-white">
-                              JP
+                              {getInitials(item.vendedor)}
                             </span>
                           </div>
                           <span className="font-medium text-blue-900">
